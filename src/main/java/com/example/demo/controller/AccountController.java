@@ -14,7 +14,6 @@ import com.example.demo.aop.Timer;
 import com.example.demo.entity.Account;
 import com.example.demo.entity.Result;
 import com.example.demo.service.IAccountService;
-import com.example.demo.enums.ColorEnum;
 import com.example.demo.vo.AccountVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
