@@ -15,7 +15,9 @@ import com.example.demo.aop.IsRepeatSubmit;
 import com.example.demo.aop.Timer;
 import com.example.demo.entity.Account;
 import com.example.demo.entity.Result;
+import com.example.demo.entity.War;
 import com.example.demo.service.IAccountService;
+import com.example.demo.service.IWarService;
 import com.example.demo.utils.ObjFieldsUtil;
 import com.example.demo.vo.AccountVO;
 import io.swagger.annotations.Api;
@@ -52,7 +54,6 @@ public class AccountController {
     /**
      * 打印sql 生产环境不建议使用
      * 状态码 通过枚举展示中文
-     * 多表关联查询
      *
      * @param vo
      * @param pageNo
@@ -60,7 +61,7 @@ public class AccountController {
      * @return
      */
     @Timer
-    @ApiOperation(value="分页查询")
+    @ApiOperation(value="多表关联分页查询")
     @GetMapping(value = "/queryPageList")
     public Result<?> queryPageList(AccountVO vo,
                                    @RequestParam(name="pageNo", defaultValue="1") Integer pageNo,
@@ -115,20 +116,26 @@ public class AccountController {
         return Result.OK(pageList);
     }
 
+    /**
+     * 多表关联插入
+     *
+     * @param account
+     * @return
+     */
 //    @IsRepeatSubmit(intervalTime=5, msg="禁止重复提交")
     @Timer
-    @ApiOperation(value="插入")
+    @ApiOperation(value="多表关联插入")
     @PostMapping(value = "/save")
     public Result<?> save(@RequestBody Account account) {
-        return Result.OK(accountService.save(account));
+        return Result.OK(accountService.multiTablesSave(account));
     }
 
-    @Timer
-    @ApiOperation(value="批量插入")
-    @PostMapping(value = "/saveBatch")
-    public Result<?> saveBatch(@RequestBody List<Account> accounts) {
-        return Result.OK(accountService.saveBatch(accounts));
-    }
+//    @Timer
+//    @ApiOperation(value="批量插入")
+//    @PostMapping(value = "/saveBatch")
+//    public Result<?> saveBatch(@RequestBody List<Account> accounts) {
+//        return Result.OK(accountService.saveBatch(accounts));
+//    }
 
 
 

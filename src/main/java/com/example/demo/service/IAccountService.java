@@ -19,4 +19,6 @@ import com.example.demo.vo.AccountVO;
 public interface IAccountService extends IService<Account> {
 
     IPage<Account> selectPage(Page page, Wrapper<AccountVO> queryWrapper);
+
+    boolean multiTablesSave(Account account);
 }

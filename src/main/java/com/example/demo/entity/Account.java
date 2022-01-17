@@ -27,31 +27,29 @@ public class Account implements Serializable {
     @TableId(value = "id", type = IdType.ASSIGN_ID)
     private String id;
 
-    @NonNull
     private String name;
 
-    @NonNull
     private String amount;
 
-    @NonNull
     private ColorEnum status;
 
-    // 插入时候自动赋值为“0”
+    @TableField(fill = FieldFill.INSERT)
     private String isDeleted;
 
     @JsonFormat(timezone = "GMT+8", pattern = "yyyy-MM-dd HH:mm:ss")
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+    @TableField(fill = FieldFill.INSERT)
     private Date createTime;
 
     @JsonFormat(timezone = "GMT+8", pattern = "yyyy-MM-dd HH:mm:ss")
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @TableField(fill = FieldFill.UPDATE)
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private Date updataTime;
 
     /**********************************
      数据库表中不存在以下字段(表join时会用到)
      **********************************/
 
+    @TableField(exist = false)
     private String weapon;
 }
