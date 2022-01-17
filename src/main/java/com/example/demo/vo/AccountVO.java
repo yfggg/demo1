@@ -18,9 +18,7 @@ import java.util.Date;
  */
 @Data
 @ApiModel(value="Account对象", description="")
-public class AccountVO implements Serializable {
-
-    private static final long serialVersionUID=1L;
+public class AccountVO {
 
     private String id;
 
@@ -38,4 +36,7 @@ public class AccountVO implements Serializable {
 
     @ApiModelProperty(value ="状态")
     private String status;
+
+    @ApiModelProperty(value ="兵器")
+    private String weapon;
 }

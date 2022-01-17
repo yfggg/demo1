@@ -9,6 +9,7 @@ import com.example.demo.mapper.AccountMapper;
 import com.example.demo.service.IAccountService;
 import com.example.demo.vo.AccountVO;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * <p>

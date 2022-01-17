@@ -21,6 +21,9 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface AccountMapper extends BaseMapper<Account> {
 
-    @Select("SELECT * FROM `account` ${ew.customSqlSegment}")
+    @Select("SELECT account.name, account.amount, account.status, war.weapon, account.create_time FROM `account` " +
+            "LEFT JOIN war " +
+            "ON account.id = war.account_id " +
+            "${ew.customSqlSegment}")
     IPage<Account> selectPageList(Page page, @Param(Constants.WRAPPER) Wrapper wrapper);
 }
