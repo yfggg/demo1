@@ -12,5 +12,5 @@ public interface ObjFieldsMapper {
     ObjFieldsMapper INSTANCE = Mappers.getMapper(ObjFieldsMapper.class);
 
     @Mapping(source = "pinyin", target = "english")
-    English to(Pinyin pinyin);
+    English toEnglish(Pinyin pinyin);
 }
