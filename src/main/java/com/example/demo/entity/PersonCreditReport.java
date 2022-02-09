@@ -5,9 +5,10 @@ import lombok.Data;
 
 @ApiModel(value="采集对象", description="")
 @Data
-public class Collection {
+public class PersonCreditReport {
 
     private String identificationNumber;
+    private String name;
     private String area;
     private Integer age;
     private String md5;

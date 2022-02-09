@@ -18,6 +18,7 @@ import com.example.demo.entity.Result;
 import com.example.demo.entity.War;
 import com.example.demo.service.IAccountService;
 import com.example.demo.service.IWarService;
+import com.example.demo.utils.ObjFieldsMapper;
 import com.example.demo.utils.ObjFieldsUtil;
 import com.example.demo.vo.AccountVO;
 import io.swagger.annotations.Api;
@@ -127,17 +128,11 @@ public class AccountController {
     @ApiOperation(value="多表关联插入")
     @PostMapping(value = "/save")
     public Result<?> save(@RequestBody Account account) {
-        return Result.OK(accountService.multiTablesSave(account));
+        AccountVO vo = ObjFieldsMapper.INSTANCE.toVO(account);
+//        queryPageList()
+        accountService.multiTablesSave(account);
+        return Result.OK();
     }
-
-//    @Timer
-//    @ApiOperation(value="批量插入")
-//    @PostMapping(value = "/saveBatch")
-//    public Result<?> saveBatch(@RequestBody List<Account> accounts) {
-//        return Result.OK(accountService.saveBatch(accounts));
-//    }
-
-
 
 }
 

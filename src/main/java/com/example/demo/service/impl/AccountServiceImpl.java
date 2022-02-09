@@ -43,15 +43,14 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
         // TODO
         // 判断数据库中是否存在
         // 如果不存在就插入
-//        result = this.saveOrUpdate();
+
+        result = saveOrUpdate(account);
 //        if(result && StrUtil.isNotBlank(account.getWeapon())) {
 //            War war = new War();
 //            war.setAccountId(account.getId());
 //            war.setWeapon(account.getWeapon());
-////            QueryWrapper<War> queryWrapper = new QueryWrapper<>();
-////            warService.getOne(queryWrapper.eq("is_deleted", "0"));
 //            try {
-//                result = warService.save(war);
+//                result = warService.saveOrUpdate(war);
 //            } catch (Exception e) {
 //                throw new RuntimeException();
 //            }
