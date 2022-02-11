@@ -23,7 +23,10 @@ public class ElasticsearchConfig {
         final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY,
                 new UsernamePasswordCredentials("elastic", "kareza"));
-        return RestClient.builder(new HttpHost("192.168.6.62", 9200, "http"))
+        return RestClient.builder(
+                new HttpHost("192.168.6.62", 9200, "http"),
+                new HttpHost("192.168.6.63", 9200, "http"),
+                new HttpHost("192.168.6.64", 9200, "http"))
                 .setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
                     @Override
                     public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {

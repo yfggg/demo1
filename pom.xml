@@ -43,6 +43,13 @@
             <version>1.18.10</version>
         </dependency>
 
+        <!-- durid连接池 -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-starter</artifactId>
+            <version>1.2.6</version>
+        </dependency>
+
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
@@ -163,6 +170,7 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <!-- elasticsearch -->
         <dependency>
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch</artifactId>
@@ -179,12 +187,11 @@
             <version>7.15.2</version>
         </dependency>
 
-        <!--导入jest依赖-->
-        <dependency>
-            <groupId>io.searchbox</groupId>
-            <artifactId>jest</artifactId>
-            <version>6.3.1</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>io.searchbox</groupId>-->
+<!--            <artifactId>jest</artifactId>-->
+<!--            <version>6.3.1</version>-->
+<!--        </dependency>-->
 
         <!-- 属性复制 -->
         <dependency>
