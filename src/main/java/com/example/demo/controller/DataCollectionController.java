@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import cn.hutool.core.util.IdcardUtil;
 import cn.hutool.core.util.NumberUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONException;
@@ -7,6 +8,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.example.demo.aop.Timer;
 import com.example.demo.entity.PersonCreditReport;
 import com.example.demo.enums.AreaCodeEnum;
+import com.example.demo.exception.IDCardException;
 import com.example.demo.utils.EsUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -71,6 +73,10 @@ public class DataCollectionController {
             PersonCreditReport personCreditReport = new PersonCreditReport();
             personCreditReport.setId(personalInfo.get("id").toString());
             String identificationNumber = personalInfo.get("sfzhm").toString();
+            // 验证身份证是否合法
+            if(!IdcardUtil.isValidCard(identificationNumber)) {
+                throw new IDCardException("证件格式错误！");
+            }
             personCreditReport.setIdentificationNumber(identificationNumber);
             personCreditReport.setName(personalInfo.get("xm").toString());
             personCreditReport.setAccountLocation(personalInfo.get("hkszd").toString());
@@ -80,8 +86,8 @@ public class DataCollectionController {
             String area = identificationNumber.substring(0, 6);
             personCreditReport.setArea(AreaCodeEnum.fromValue(area).getArea());
             // 身份证提取年龄
-            Double age = NumberUtil.sub(ZonedDateTime.now().getYear(), Integer.valueOf(identificationNumber.substring(6, 10)).intValue());
-            personCreditReport.setAge(age.toString());
+            int age = IdcardUtil.getAgeByIdCard(identificationNumber);
+            personCreditReport.setAge(String.valueOf(age));
 
             // 覆盖原始 _source
             Map<String, Object> fields = new HashMap<>();
@@ -111,6 +117,8 @@ public class DataCollectionController {
             log.error("_id 为 {} 的用户空指针异常: {}", id, e.getMessage());
         } catch (JSONException e) {
             log.error("_id 为 {} 的用户JSON异常: {}", id, e.getMessage());
+        } catch (IDCardException e) {
+            log.error("_id 为 {} 的用户身份证异常: {}", id, e.getMessage());
         }
     }
 
