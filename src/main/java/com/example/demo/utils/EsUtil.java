@@ -24,6 +24,8 @@ import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.text.Text;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.search.Scroll;
@@ -39,6 +41,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -46,10 +49,7 @@ import java.util.function.Function;
 
 /**
  * es 的工具类
- *
- * @author czchen
- * @version 1.0
- * @date 2020/8/25 14:37
+ * @author yangfan
  */
 @Slf4j
 @Component
@@ -58,15 +58,14 @@ public class EsUtil {
     @Autowired
     private RestHighLevelClient restHighLevelClient;
 
-
     /**
      * 关键字
      */
     public static final String KEYWORD = ".keyword";
 
+
     /**
      * 创建索引
-     *
      * @param index 索引
      * @retur
      */
@@ -79,15 +78,13 @@ public class EsUtil {
         CreateIndexRequest request = new CreateIndexRequest(index);
         //2.执行客户端请求
         CreateIndexResponse response = restHighLevelClient.indices().create(request, RequestOptions.DEFAULT);
-
-        log.info("创建索引{}成功",index);
-
+        log.info("创建索引: {} 成功",index);
         return response.isAcknowledged();
     }
 
+
     /**
      * 删除索引
-     *
      * @param index
      * @return
      */
@@ -100,12 +97,9 @@ public class EsUtil {
         DeleteIndexRequest request = new DeleteIndexRequest(index);
         //执行客户端请求
         AcknowledgedResponse delete = restHighLevelClient.indices().delete(request, RequestOptions.DEFAULT);
-
-        log.info("删除索引{}成功",index);
-
+        log.info("删除索引: {} 成功",index);
         return delete.isAcknowledged();
     }
-
 
 
     /**
@@ -120,9 +114,8 @@ public class EsUtil {
     }
 
 
-
     /**
-     * 数据添加，正定ID
+     * 数据添加 指定ID
      *
      * @param jsonObject 要增加的数据
      * @param index      索引，类似数据库
@@ -130,7 +123,6 @@ public class EsUtil {
      * @return
      */
     public String addData(JSONObject jsonObject, String index, String id) throws IOException {
-
         //创建请求
         IndexRequest request = new IndexRequest(index);
         //规则 put /test_index/_doc/1
@@ -145,6 +137,29 @@ public class EsUtil {
     }
 
 
+    /**
+     * 数据添加 指定ID
+     * @param index
+     * @param id
+     * @param fields
+     * @return
+     * @throws IOException
+     */
+    public String addData(String index, String id, Map<String, Object> fields) throws IOException {
+        XContentBuilder builder = XContentFactory.jsonBuilder();
+        builder.startObject();
+        for(String key : fields.keySet()){
+            String value = fields.get(key).toString();
+            builder.field(key, value);
+        }
+        builder.endObject();
+        // 文档 source 提供一个 XContent 生成器对象,Elasticsearch内置的帮手来生成 JSON 内容
+        IndexRequest indexRequest = new IndexRequest(index).id(id).source(builder);
+        IndexResponse indexResponse = restHighLevelClient.index(indexRequest, RequestOptions.DEFAULT);
+//        log.info("添加数据成功 索引为: {}, response 状态: {}, id为: {}", index,indexResponse.status().getStatus(), indexResponse.getId());
+        return indexResponse.getId();
+    }
+
 
     /**
      * 数据添加 随机id
@@ -156,6 +171,7 @@ public class EsUtil {
     public String addData(JSONObject jsonObject, String index) throws IOException {
         return addData(jsonObject, index, UUID.randomUUID().toString().replaceAll("-", "").toUpperCase());
     }
+
 
     /**
      * 通过ID删除数据
@@ -239,6 +255,7 @@ public class EsUtil {
         return map;
     }
 
+
     /**
      * 通过ID判断文档是否存在
      * @param index  索引，类似数据库
@@ -252,6 +269,7 @@ public class EsUtil {
         request.storedFields("_none_");
         return restHighLevelClient.exists(request, RequestOptions.DEFAULT);
     }
+
 
     /**
      * 获取低水平客户端
@@ -347,15 +365,14 @@ public class EsUtil {
     }
 
 
-
     /**
      * 滚动查询 一般用于数据迁移or索引变更
      * @param index
      * @param size
-     * @param iterateOverHits
+     * @param consumer
      * @throws IOException
      */
-    public void scrollSearch(String index, Integer size, Consumer<SearchHit[]> iterateOverHits) throws IOException {
+    public void scrollSearch(String index, Integer size, Consumer<SearchHit> consumer) throws IOException {
         // 存活一分钟
         final Scroll scroll = new Scroll(TimeValue.timeValueMinutes(1L));
         SearchRequest searchRequest = new SearchRequest(index);
@@ -369,7 +386,9 @@ public class EsUtil {
         SearchResponse searchResponse = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
         String scrollId = searchResponse.getScrollId();
         SearchHit[] searchHits = searchResponse.getHits().getHits();
-        iterateOverHits.accept(searchHits);
+        for (SearchHit searchHit : searchHits) {
+            consumer.accept(searchHit);
+        }
 
         // 通过在循环中调用 Search Scroll api 来检索所有搜索命中 直到没有文档返回
         while (searchHits != null && searchHits.length > 0) {
@@ -379,7 +398,9 @@ public class EsUtil {
             searchResponse = restHighLevelClient.scroll(scrollRequest, RequestOptions.DEFAULT);
             scrollId = searchResponse.getScrollId();
             searchHits = searchResponse.getHits().getHits();
-            iterateOverHits.accept(searchHits);
+            for (SearchHit searchHit : searchHits) {
+                consumer.accept(searchHit);
+            }
         }
 
         // 完成后清除滚动

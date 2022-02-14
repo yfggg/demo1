@@ -19,6 +19,12 @@ public class PersonCreditReport {
     // 身份证号码
     private String identificationNumber;
 
+    // 区域
+    private String area;
+
+    // 年龄
+    private String age;
+
     // 户口所在地
     private String accountLocation;
 
