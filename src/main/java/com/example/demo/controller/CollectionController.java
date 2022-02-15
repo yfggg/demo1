@@ -1,37 +1,44 @@
 package com.example.demo.controller;
 
+import cn.hutool.core.codec.Base64;
 import cn.hutool.core.util.IdcardUtil;
-import cn.hutool.core.util.NumberUtil;
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.JSONObject;
 import com.example.demo.aop.Timer;
+import com.example.demo.entity.CollectionException;
 import com.example.demo.entity.PersonCreditReport;
 import com.example.demo.enums.AreaCodeEnum;
-import com.example.demo.exception.IDCardException;
+import com.example.demo.enums.CollectionEnum;
+import com.example.demo.service.ICollectionExceptionService;
 import com.example.demo.utils.EsUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.search.SearchHit;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
-import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @Api(tags="采集")
 @Slf4j
 @RestController
 @RequestMapping("/collection")
-public class DataCollectionController {
+public class CollectionController {
 
     @Autowired
     private EsUtil esUtil;
+
+    @Autowired
+    private ICollectionExceptionService collectionExceptionService;
 
     private static final String PERSON_CREDIT_REPORT = "person_credit_report-*";
     private static final String PERSON_CREDIT_REPORT_NEW = "person_credit_report_new";
@@ -54,13 +61,16 @@ public class DataCollectionController {
      * @param searchHit
      */
     private void handleHit(SearchHit searchHit) {
-        String id = null;
+        String docId = null;
         try {
-            // 提取 id
-            id = searchHit.getId();
+            // 提取 doc_id
+            docId = searchHit.getId();
             // 提取 _source
             String source = searchHit.getSourceAsString();
             // TODO 对_source(是128位) 进行md5加密
+            String md5 = DigestUtils.md5DigestAsHex(source.getBytes("utf-8"));
+            // TODO 对_source(是128位) 进行base64加密
+            String base64 = Base64.encode(source);
             // 提取 @timestamp
             String timestamp = JSON.parseObject(searchHit.getSourceAsString()).get("@timestamp").toString();
             // 提取 json
@@ -75,8 +85,32 @@ public class DataCollectionController {
             String identificationNumber = personalInfo.get("sfzhm").toString();
             // 验证身份证是否合法
             if(!IdcardUtil.isValidCard(identificationNumber)) {
-                throw new IDCardException("证件格式错误！");
+                log.error("_id 为 {} 的用户身份证格式异常！", docId);
+                // 有问题保存到 mysql
+                CollectionException ce = collectionExceptionService.getById(docId);
+                Optional.ofNullable(ce)
+                        .map(collectionException -> collectionException.getExceptionDescription())
+                        .ifPresent(exceptionDescription -> {
+                            StringBuilder sb = new StringBuilder(exceptionDescription);
+                            String description = StrUtil.format("身份证格式异常: {}, ", identificationNumber);
+                            sb.append(description);
+                            ce.setExceptionDescription(sb.toString());
+                            collectionExceptionService.saveOrUpdate(ce);
+                        });
+                String finalDocId = docId;
+                Optional.ofNullable(ce)
+                        .orElseGet(() -> {
+                            CollectionException collectionException = new CollectionException();
+                            collectionException.setDocId(finalDocId);
+                            collectionException.setDocIndex(PERSON_CREDIT_REPORT);
+                            collectionException.setDataType(CollectionEnum.PERSONAL_CREDIT_REPORT);
+                            String description = StrUtil.format("身份证格式异常: {}, ", identificationNumber);
+                            collectionException.setExceptionDescription(description);
+                            collectionExceptionService.saveOrUpdate(collectionException);
+                            return null;
+                        });
             }
+            personCreditReport.setMd5(md5);
             personCreditReport.setIdentificationNumber(identificationNumber);
             personCreditReport.setName(personalInfo.get("xm").toString());
             personCreditReport.setAccountLocation(personalInfo.get("hkszd").toString());
@@ -91,7 +125,7 @@ public class DataCollectionController {
 
             // 覆盖原始 _source
             Map<String, Object> fields = new HashMap<>();
-            fields.put("@timestamp",timestamp);
+            fields.put("@timestamp", timestamp);
             // 源字段
             fields.put("id", personCreditReport.getId());
             fields.put("name", personCreditReport.getName());
@@ -103,24 +137,39 @@ public class DataCollectionController {
             fields.put("age", personCreditReport.getAge());
             // 后期增加字段
             fields.put("batch_id", "111");
-            fields.put("md5", "");
             fields.put("filter", "0");
             fields.put("url", "");
             // 上链必须字段
             fields.put("slsj", "");
             fields.put("txid", "");
             fields.put("info", "");
-            esUtil.addData(PERSON_CREDIT_REPORT_NEW, id, fields);
+            // 源数据备份
+            fields.put("base64", base64);
+            esUtil.addData(PERSON_CREDIT_REPORT_NEW, docId, fields);
         } catch (IOException e) {
             e.printStackTrace();
         } catch (NullPointerException e) {
-            log.error("_id 为 {} 的用户空指针异常: {}", id, e.getMessage());
+            log.error("_id 为 {} 的用户空指针异常: {}", docId, e.getMessage());
         } catch (JSONException e) {
-            log.error("_id 为 {} 的用户JSON异常: {}", id, e.getMessage());
-        } catch (IDCardException e) {
-            log.error("_id 为 {} 的用户身份证异常: {}", id, e.getMessage());
+            log.error("_id 为 {} 的用户JSON异常: {}", docId, e.getMessage());
         }
     }
 
+    /**
+     * 标记异常
+     * @param id
+     */
+    @Timer
+    @ApiOperation(value="标记异常")
+    @PostMapping(value = "/update/filterFlag")
+    public void updatefilterFlag(String id) {
+//        try {
+//            Map<String, Object> fields = new HashMap<>();
+//            fields.put("filter", "1");
+//            esUtil.updateDataById(PERSON_CREDIT_REPORT_NEW, id, fields);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+    }
 
 }

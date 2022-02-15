@@ -39,13 +39,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * es 的工具类
@@ -58,10 +55,7 @@ public class EsUtil {
     @Autowired
     private RestHighLevelClient restHighLevelClient;
 
-    /**
-     * 关键字
-     */
-    public static final String KEYWORD = ".keyword";
+//    public static final String KEYWORD = ".keyword";
 
 
     /**
@@ -113,30 +107,6 @@ public class EsUtil {
         return restHighLevelClient.indices().exists(request, RequestOptions.DEFAULT);
     }
 
-
-    /**
-     * 数据添加 指定ID
-     *
-     * @param jsonObject 要增加的数据
-     * @param index      索引，类似数据库
-     * @param id         数据ID, 为null时es随机生成
-     * @return
-     */
-    public String addData(JSONObject jsonObject, String index, String id) throws IOException {
-        //创建请求
-        IndexRequest request = new IndexRequest(index);
-        //规则 put /test_index/_doc/1
-        request.id(id);
-        request.timeout(TimeValue.timeValueSeconds(1));
-        //将数据放入请求 json
-        IndexRequest source = request.source(jsonObject, XContentType.JSON);
-        //客户端发送请求
-        IndexResponse response = restHighLevelClient.index(request, RequestOptions.DEFAULT);
-        log.info("添加数据成功 索引为: {}, response 状态: {}, id为: {}",index,response.status().getStatus(), response.getId());
-        return response.getId();
-    }
-
-
     /**
      * 数据添加 指定ID
      * @param index
@@ -153,25 +123,11 @@ public class EsUtil {
             builder.field(key, value);
         }
         builder.endObject();
-        // 文档 source 提供一个 XContent 生成器对象,Elasticsearch内置的帮手来生成 JSON 内容
         IndexRequest indexRequest = new IndexRequest(index).id(id).source(builder);
         IndexResponse indexResponse = restHighLevelClient.index(indexRequest, RequestOptions.DEFAULT);
 //        log.info("添加数据成功 索引为: {}, response 状态: {}, id为: {}", index,indexResponse.status().getStatus(), indexResponse.getId());
         return indexResponse.getId();
     }
-
-
-    /**
-     * 数据添加 随机id
-     *
-     * @param jsonObject 要增加的数据
-     * @param index      索引，类似数据库
-     * @return
-     */
-    public String addData(JSONObject jsonObject, String index) throws IOException {
-        return addData(jsonObject, index, UUID.randomUUID().toString().replaceAll("-", "").toUpperCase());
-    }
-
 
     /**
      * 通过ID删除数据
@@ -187,52 +143,47 @@ public class EsUtil {
         log.info("索引为: {}, id为: {}删除数据成功",index, id);
     }
 
-
     /**
      * 通过ID 更新数据
      *
-     * @param object     要增加的数据
+     * @param fields     要增加的数据
      * @param index      索引，类似数据库
      * @param id         数据ID
      * @return
      */
-    public void updateDataById(Object object, String index, String id) throws IOException {
-        //更新请求
-        UpdateRequest update = new UpdateRequest(index, id);
-
-        //保证数据实时更新
-        //update.setRefreshPolicy("wait_for");
-
-        update.timeout("1s");
-        update.doc(JSON.toJSONString(object), XContentType.JSON);
-        //执行更新请求
-        UpdateResponse update1 = restHighLevelClient.update(update, RequestOptions.DEFAULT);
-        log.info("索引为: {}, id为: {}, 更新数据成功",index, id);
+    public void updateDataById(String index, String id, Map<String, Object> fields) throws IOException {
+        XContentBuilder builder = XContentFactory.jsonBuilder();
+        builder.startObject();
+        for(String key : fields.keySet()){
+            String value = fields.get(key).toString();
+            builder.field(key, value);
+        }
+        builder.endObject();
+        UpdateRequest updateRequest = new UpdateRequest(index, id).timeout("1s").doc(builder);
+        UpdateResponse updateResponse = restHighLevelClient.update(updateRequest, RequestOptions.DEFAULT);
+        log.info("索引为: {}, id为: {}, 更新数据成功",updateResponse.getIndex(), updateResponse.getId());
     }
-
 
     /**
      * 通过ID 更新数据,保证实时性
      *
-     * @param object     要增加的数据
+     * @param fields     要增加的数据
      * @param index      索引，类似数据库
      * @param id         数据ID
      * @return
      */
-    public void updateDataByIdNoRealTime(Object object, String index, String id) throws IOException {
-        //更新请求
-        UpdateRequest update = new UpdateRequest(index, id);
-
-        //保证数据实时更新
-        update.setRefreshPolicy("wait_for");
-
-        update.timeout("1s");
-        update.doc(JSON.toJSONString(object), XContentType.JSON);
-        //执行更新请求
-        UpdateResponse update1 = restHighLevelClient.update(update, RequestOptions.DEFAULT);
-        log.info("索引为: {}, id为: {}, 更新数据成功",index, id);
+    public void realTimeupdateDataById(String index, String id, Map<String, Object> fields) throws IOException {
+        XContentBuilder builder = XContentFactory.jsonBuilder();
+        builder.startObject();
+        for(String key : fields.keySet()){
+            String value = fields.get(key).toString();
+            builder.field(key, value);
+        }
+        builder.endObject();
+        UpdateRequest updateRequest = new UpdateRequest(index, id).setRefreshPolicy("wait_for").timeout("1s").doc(builder);
+        UpdateResponse updateResponse = restHighLevelClient.update(updateRequest, RequestOptions.DEFAULT);
+        log.info("索引为: {}, id为: {}, 更新数据成功",updateResponse.getIndex(), updateResponse.getId());
     }
-
 
     /**
      * 通过ID获取数据
@@ -255,7 +206,6 @@ public class EsUtil {
         return map;
     }
 
-
     /**
      * 通过ID判断文档是否存在
      * @param index  索引，类似数据库
@@ -270,7 +220,6 @@ public class EsUtil {
         return restHighLevelClient.exists(request, RequestOptions.DEFAULT);
     }
 
-
     /**
      * 获取低水平客户端
      * @return
@@ -278,7 +227,6 @@ public class EsUtil {
     public RestClient getLowLevelClient() {
         return restHighLevelClient.getLowLevelClient();
     }
-
 
     /**
      * 高亮结果集 特殊处理
@@ -310,7 +258,6 @@ public class EsUtil {
         }
         return list;
     }
-
 
     /**
      * 查询并分页
@@ -363,7 +310,6 @@ public class EsUtil {
         }
         return null;
     }
-
 
     /**
      * 滚动查询 一般用于数据迁移or索引变更

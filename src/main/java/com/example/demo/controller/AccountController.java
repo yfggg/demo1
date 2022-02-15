@@ -14,9 +14,12 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.demo.aop.IsRepeatSubmit;
 import com.example.demo.aop.Timer;
 import com.example.demo.entity.Account;
+import com.example.demo.entity.CollectionException;
 import com.example.demo.entity.Result;
 import com.example.demo.entity.War;
+import com.example.demo.enums.CollectionEnum;
 import com.example.demo.service.IAccountService;
+import com.example.demo.service.ICollectionExceptionService;
 import com.example.demo.service.IWarService;
 import com.example.demo.utils.ObjFieldsMapper;
 import com.example.demo.utils.ObjFieldsUtil;
@@ -51,6 +54,9 @@ public class AccountController {
 
     @Autowired
     private IAccountService accountService;
+
+    @Autowired
+    private ICollectionExceptionService collectionExceptionService;
 
     /**
      * 打印sql 生产环境不建议使用
@@ -120,17 +126,49 @@ public class AccountController {
     /**
      * 多表关联插入
      *
-     * @param account
+     * @param
      * @return
      */
 //    @IsRepeatSubmit(intervalTime=5, msg="禁止重复提交")
-    @Timer
-    @ApiOperation(value="多表关联插入")
-    @PostMapping(value = "/save")
-    public Result<?> save(@RequestBody Account account) {
-        AccountVO vo = ObjFieldsMapper.INSTANCE.toVO(account);
-//        queryPageList()
-        accountService.multiTablesSave(account);
+//    @Timer
+//    @ApiOperation(value="多表关联插入")
+//    @PostMapping(value = "/save")
+//    public Result<?> save(@RequestBody Account account) {
+//        AccountVO vo = ObjFieldsMapper.INSTANCE.toVO(account);
+////        queryPageList()
+//        accountService.multiTablesSave(account);
+//        return Result.OK();
+//    }
+
+     @Timer
+     @ApiOperation(value="测试")
+     @PostMapping(value = "/test")
+     public Result<?> save() {
+//         CollectionException collectionException = new CollectionException();
+//         collectionException.setDocId("1234");
+//         collectionException.setExceptionDescription("ggg");
+//         collectionExceptionService.saveOrUpdate(collectionException);
+
+         CollectionException ce = collectionExceptionService.getById("123cc");
+
+         Optional.ofNullable(ce)
+                 .map(collectionException -> collectionException.getExceptionDescription())
+                 .ifPresent(exceptionDescription -> {
+                     StringBuilder sb = new StringBuilder(exceptionDescription);
+                     sb.append("new string, ");
+                     ce.setExceptionDescription(sb.toString());
+                     collectionExceptionService.saveOrUpdate(ce);
+                 });
+
+         Optional.ofNullable(ce)
+                 .orElseGet(() -> {
+                     CollectionException collectionException = new CollectionException();
+                     collectionException.setDocId("123cc");
+                     collectionException.setExceptionDescription("cc");
+                     collectionExceptionService.saveOrUpdate(collectionException);
+             return null;
+         });
+
         return Result.OK();
     }
 

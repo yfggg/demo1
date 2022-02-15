@@ -14,7 +14,7 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     @Override
     public void insertFill(MetaObject metaObject) {
         log.info("start insert fill ....");
-        this.setFieldValByName("isDeleted", "0", metaObject);
+//        this.setFieldValByName("delFlag", "0", metaObject);
         this.setFieldValByName("createTime", new Date(), metaObject);
         this.setFieldValByName("updataTime", new Date(), metaObject);
     }
