@@ -48,7 +48,7 @@ public class CollectionController {
 
     @Timer
     @ApiOperation(value="核心字段提取")
-    @PostMapping(value = "/extraction/coreFields")
+    @PostMapping(value = "/extractionOfCoreFields")
     public String extractionOfCoreFields() {
         try {
             if(!esUtil.createIndex(PERSON_CREDIT_REPORT_NEW)) return null;
@@ -104,7 +104,7 @@ public class CollectionController {
             personCreditReport.setId(personalInfo.get("id").toString());
             String identificationNumber = personalInfo.get("sfzhm").toString();
             // 验证身份证是否合法
-            if(IdcardUtil.isValidCard(identificationNumber)) {
+            if(!IdcardUtil.isValidCard(identificationNumber)) {
                 log.error("_id 为 {} 的用户身份证格式异常！", docId);
                 // 有问题保存到 mysql
                 CollectionException ce = collectionExceptionService.getById(docId);
@@ -136,14 +136,14 @@ public class CollectionController {
             personCreditReport.setIdentificationNumber(identificationNumber);
             personCreditReport.setName(personalInfo.get("xm").toString());
             personCreditReport.setAccountLocation(personalInfo.get("hkszd").toString());
-            personCreditReport.setMollyScore(data.get("xymlf").toString());
+            personCreditReport.setMollyScore(new Double(data.get("xymlf").toString()));
             personCreditReport.setCreditLevel(data.get("xydj").toString());
             // 身份证提取地址编码(市 区 县)
             String area = identificationNumber.substring(0, 6);
             personCreditReport.setArea(AreaCodeEnum.fromValue(area).getArea());
             // 身份证提取年龄
             int age = IdcardUtil.getAgeByIdCard(identificationNumber);
-            personCreditReport.setAge(String.valueOf(age));
+            personCreditReport.setAge(age);
 
             // 覆盖原始 _source
             Map<String, Object> fields = new HashMap<>();

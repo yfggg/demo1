@@ -23,13 +23,13 @@ public class PersonCreditReport {
     private String area;
 
     // 年龄
-    private String age;
+    private Integer age;
 
     // 户口所在地
     private String accountLocation;
 
     // 茉莉分
-    private String mollyScore;
+    private Double mollyScore;
 
     // 信用等级
     private String creditLevel;

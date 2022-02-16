@@ -1,6 +1,7 @@
 package com.example.demo.utils;
 
 import cn.hutool.core.util.StrUtil;
+import com.example.demo.entity.Bucket;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -31,6 +32,12 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.bucket.range.DateRangeAggregationBuilder;
+import org.elasticsearch.search.aggregations.bucket.range.Range;
+import org.elasticsearch.search.aggregations.metrics.ValueCount;
+import org.elasticsearch.search.aggregations.metrics.ValueCountAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
@@ -38,11 +45,10 @@ import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import springfox.documentation.schema.Entry;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -95,8 +101,7 @@ public class EsUtil {
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject();
         for(String key : fields.keySet()){
-            String value = fields.get(key).toString();
-            builder.field(key, value);
+            builder.field(key, fields.get(key));
         }
         builder.endObject();
         IndexRequest request = new IndexRequest(index).id(id).source(builder);
@@ -182,6 +187,52 @@ public class EsUtil {
         boolean succeeded = clearScrollResponse.isSucceeded();
         // 打印清除结果
         log.info(String.valueOf(succeeded));
+    }
+
+    /**
+     * 按年龄层统计
+     *
+     * @param index
+     * @param field
+     * @return
+     * @throws IOException
+     */
+    public Bucket statisticsByAge(String index, String field, String subField) throws IOException {
+        // 创建一个查询请求，并指定索引名称
+        SearchRequest searchRequest = new SearchRequest(index);
+
+        // 按年龄层统计
+        DateRangeAggregationBuilder dateRangeAggregationBuilder =
+                AggregationBuilders.dateRange("date_range").field(field)
+                        .addRange(0, 20).addRange(20, 40).addRange(40, 60)
+                        .addRange(60, 80).addRange(80, 100).addRange(100, 120);
+        // 上链数统计
+        ValueCountAggregationBuilder valueCountAggregationBuilder =
+                AggregationBuilders.count("value_count").field(subField);
+
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        dateRangeAggregationBuilder.subAggregation(valueCountAggregationBuilder);
+        searchSourceBuilder.aggregation(dateRangeAggregationBuilder);
+        searchRequest.source(searchSourceBuilder);
+
+        //发起请求，获取响应结果
+        SearchResponse response = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+
+        //获取聚合的结果
+        Range buckets = response.getAggregations().get("date_range");
+        Bucket result = new Bucket();
+        List<String> datas = new ArrayList<>();
+        List<String> values = new ArrayList<>();
+        //循环遍历各个桶结果
+        for (Range.Bucket bucket : buckets.getBuckets()) {
+            ValueCount valueCount = bucket.getAggregations().get("value_count");
+            datas.add(bucket.getKey().toString());
+            values.add(String.valueOf(valueCount.getValue()));
+        }
+        result.setDates(datas);
+        result.setValues(values);
+
+        return result;
     }
 
 }
