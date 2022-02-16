@@ -56,7 +56,6 @@ public class EsUtil {
     @Autowired
     private RestHighLevelClient restHighLevelClient;
 
-
     /**
      * 创建索引
      * @param index 索引
@@ -138,90 +137,8 @@ public class EsUtil {
     }
 
     /**
-     * 高亮结果集 特殊处理
-     * map转对象 JSONObject.parseObject(JSONObject.toJSONString(map), Content.class)
-     * @param searchResponse
-     * @param highlightField
-     */
-    public List<Map<String, Object>> setSearchResponse(SearchResponse searchResponse, String highlightField) {
-        //解析结果
-        ArrayList<Map<String,Object>> list = new ArrayList<>();
-        for (SearchHit hit : searchResponse.getHits().getHits()) {
-            Map<String, HighlightField> high = hit.getHighlightFields();
-            HighlightField title = high.get(highlightField);
-
-            hit.getSourceAsMap().put("id", hit.getId());
-
-            Map<String, Object> sourceAsMap = hit.getSourceAsMap();//原来的结果
-            //解析高亮字段,将原来的字段换为高亮字段
-            if (title!=null){
-                Text[] texts = title.fragments();
-                String nTitle="";
-                for (Text text : texts) {
-                    nTitle+=text;
-                }
-                //替换
-                sourceAsMap.put(highlightField,nTitle);
-            }
-            list.add(sourceAsMap);
-        }
-        return list;
-    }
-
-    /**
-     * 查询并分页
-     * @param index          索引名称
-     * @param query          查询条件
-     * @param size           文档大小限制
-     * @param from           从第几页开始
-     * @param fields         需要显示的字段，逗号分隔（缺省为全部字段）
-     * @param sortField      排序字段
-     * @param highlightField 高亮字段
-     * @return
-     */
-    public List<Map<String, Object>> search(String index,
-                                                    SearchSourceBuilder query,
-                                                    Integer size,
-                                                    Integer from,
-                                                    String fields,
-                                                    String sortField,
-                                                    String highlightField) throws IOException {
-        SearchRequest request = new SearchRequest(index);
-        SearchSourceBuilder builder = query;
-        if (StringUtils.isNotEmpty(fields)){
-            //只查询特定字段。如果需要查询所有字段则不设置该项。
-            builder.fetchSource(new FetchSourceContext(true,fields.split(","),Strings.EMPTY_ARRAY));
-        }
-        from = from <= 0 ? 0 : from*size;
-        //设置确定结果要从哪个索引开始搜索的from选项，默认为0
-        builder.from(from);
-        builder.size(size);
-        if (StringUtils.isNotEmpty(sortField)){
-            //排序字段，注意如果proposal_no是text类型会默认带有keyword性质，需要拼接.keyword
-            builder.sort(sortField+".keyword", SortOrder.ASC);
-        }
-        //高亮
-        HighlightBuilder highlight = new HighlightBuilder();
-        highlight.field(highlightField);
-        //关闭多个高亮
-        highlight.requireFieldMatch(false);
-        highlight.preTags("<span style='color:red'>");
-        highlight.postTags("</span>");
-        builder.highlighter(highlight);
-        //不返回源数据。只有条数之类的数据。
-        //builder.fetchSource(false);
-        request.source(builder);
-        SearchResponse response = restHighLevelClient.search(request, RequestOptions.DEFAULT);
-        log.error("=="+response.getHits().getTotalHits());
-        if (response.status().getStatus() == 200) {
-            // 解析对象
-            return setSearchResponse(response, highlightField);
-        }
-        return null;
-    }
-
-    /**
      * 滚动查询 一般用于数据迁移or索引变更
+     *
      * @param index
      * @param size
      * @param consumer
@@ -266,7 +183,6 @@ public class EsUtil {
         // 打印清除结果
         log.info(String.valueOf(succeeded));
     }
-
 
 }
 
