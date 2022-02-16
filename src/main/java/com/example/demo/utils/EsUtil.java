@@ -1,11 +1,12 @@
 package com.example.demo.utils;
 
-import cn.hutool.core.lang.UUID;
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
+import cn.hutool.core.util.StrUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
@@ -13,6 +14,7 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.*;
+import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
@@ -26,7 +28,6 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
@@ -55,8 +56,6 @@ public class EsUtil {
     @Autowired
     private RestHighLevelClient restHighLevelClient;
 
-//    public static final String KEYWORD = ".keyword";
-
 
     /**
      * 创建索引
@@ -65,36 +64,13 @@ public class EsUtil {
      */
     public boolean createIndex(String index) throws IOException {
         if(isIndexExist(index)){
-            log.error("Index is exits!");
+            log.error(StrUtil.format("索引 {} 已经存在！", index));
             return false;
         }
-        //1.创建索引请求
         CreateIndexRequest request = new CreateIndexRequest(index);
-        //2.执行客户端请求
         CreateIndexResponse response = restHighLevelClient.indices().create(request, RequestOptions.DEFAULT);
-        log.info("创建索引: {} 成功",index);
         return response.isAcknowledged();
     }
-
-
-    /**
-     * 删除索引
-     * @param index
-     * @return
-     */
-    public boolean deleteIndex(String index) throws IOException {
-        if(!isIndexExist(index)) {
-            log.error("Index is not exits!");
-            return false;
-        }
-        //删除索引请求
-        DeleteIndexRequest request = new DeleteIndexRequest(index);
-        //执行客户端请求
-        AcknowledgedResponse delete = restHighLevelClient.indices().delete(request, RequestOptions.DEFAULT);
-        log.info("删除索引: {} 成功",index);
-        return delete.isAcknowledged();
-    }
-
 
     /**
      * 判断索引是否存在
@@ -109,13 +85,14 @@ public class EsUtil {
 
     /**
      * 数据添加 指定ID
+     *
      * @param index
      * @param id
      * @param fields
      * @return
      * @throws IOException
      */
-    public String addData(String index, String id, Map<String, Object> fields) throws IOException {
+    public void addData(String index, String id, Map<String, Object> fields) throws IOException {
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject();
         for(String key : fields.keySet()){
@@ -123,35 +100,20 @@ public class EsUtil {
             builder.field(key, value);
         }
         builder.endObject();
-        IndexRequest indexRequest = new IndexRequest(index).id(id).source(builder);
-        IndexResponse indexResponse = restHighLevelClient.index(indexRequest, RequestOptions.DEFAULT);
-//        log.info("添加数据成功 索引为: {}, response 状态: {}, id为: {}", index,indexResponse.status().getStatus(), indexResponse.getId());
-        return indexResponse.getId();
+        IndexRequest request = new IndexRequest(index).id(id).source(builder);
+        restHighLevelClient.index(request, RequestOptions.DEFAULT);
     }
 
-    /**
-     * 通过ID删除数据
-     *
-     * @param index 索引，类似数据库
-     * @param id    数据ID
-     */
-    public void deleteDataById(String index, String id) throws IOException {
-        //删除请求
-        DeleteRequest request = new DeleteRequest(index, id);
-        //执行客户端请求
-        DeleteResponse delete = restHighLevelClient.delete(request, RequestOptions.DEFAULT);
-        log.info("索引为: {}, id为: {}删除数据成功",index, id);
-    }
 
     /**
-     * 通过ID 更新数据
+     * 通过ID 批量更新数据
      *
      * @param fields     要增加的数据
      * @param index      索引，类似数据库
-     * @param id         数据ID
+     * @param ids        数据ID列表
      * @return
      */
-    public void updateDataById(String index, String id, Map<String, Object> fields) throws IOException {
+    public void bulkUpdateDataById(String index, List<String> ids, Map<String, Object> fields) throws IOException {
         XContentBuilder builder = XContentFactory.jsonBuilder();
         builder.startObject();
         for(String key : fields.keySet()){
@@ -159,73 +121,20 @@ public class EsUtil {
             builder.field(key, value);
         }
         builder.endObject();
-        UpdateRequest updateRequest = new UpdateRequest(index, id).timeout("1s").doc(builder);
-        UpdateResponse updateResponse = restHighLevelClient.update(updateRequest, RequestOptions.DEFAULT);
-        log.info("索引为: {}, id为: {}, 更新数据成功",updateResponse.getIndex(), updateResponse.getId());
-    }
 
-    /**
-     * 通过ID 更新数据,保证实时性
-     *
-     * @param fields     要增加的数据
-     * @param index      索引，类似数据库
-     * @param id         数据ID
-     * @return
-     */
-    public void realTimeupdateDataById(String index, String id, Map<String, Object> fields) throws IOException {
-        XContentBuilder builder = XContentFactory.jsonBuilder();
-        builder.startObject();
-        for(String key : fields.keySet()){
-            String value = fields.get(key).toString();
-            builder.field(key, value);
+        BulkRequest request = new BulkRequest();
+        for(String id : ids) {
+            request.add(new UpdateRequest(index, id).doc(builder));
+            request.timeout("2m");
         }
-        builder.endObject();
-        UpdateRequest updateRequest = new UpdateRequest(index, id).setRefreshPolicy("wait_for").timeout("1s").doc(builder);
-        UpdateResponse updateResponse = restHighLevelClient.update(updateRequest, RequestOptions.DEFAULT);
-        log.info("索引为: {}, id为: {}, 更新数据成功",updateResponse.getIndex(), updateResponse.getId());
-    }
+        BulkResponse bulkResponse = restHighLevelClient.bulk(request, RequestOptions.DEFAULT);
 
-    /**
-     * 通过ID获取数据
-     *
-     * @param index  索引，类似数据库
-     * @param id     数据ID
-     * @param fields 需要显示的字段，逗号分隔（缺省为全部字段）
-     * @return
-     */
-    public Map<String,Object> searchDataById(String index, String id, String fields) throws IOException {
-        GetRequest request = new GetRequest(index, id);
-        if (StringUtils.isNotEmpty(fields)){
-            //只查询特定字段。如果需要查询所有字段则不设置该项。
-            request.fetchSourceContext(new FetchSourceContext(true,fields.split(","), Strings.EMPTY_ARRAY));
+        for (BulkItemResponse bulkItemResponse : bulkResponse) {
+            if (bulkItemResponse.isFailed()) {
+                BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
+                log.error("_id {} 更新失败: {}", bulkItemResponse.getId(), failure.getMessage());
+            }
         }
-        GetResponse response = restHighLevelClient.get(request, RequestOptions.DEFAULT);
-        Map<String, Object> map = response.getSource();
-        //为返回的数据添加id
-        map.put("id",response.getId());
-        return map;
-    }
-
-    /**
-     * 通过ID判断文档是否存在
-     * @param index  索引，类似数据库
-     * @param id     数据ID
-     * @return
-     */
-    public  boolean existsById(String index,String id) throws IOException {
-        GetRequest request = new GetRequest(index, id);
-        //不获取返回的_source的上下文
-        request.fetchSourceContext(new FetchSourceContext(false));
-        request.storedFields("_none_");
-        return restHighLevelClient.exists(request, RequestOptions.DEFAULT);
-    }
-
-    /**
-     * 获取低水平客户端
-     * @return
-     */
-    public RestClient getLowLevelClient() {
-        return restHighLevelClient.getLowLevelClient();
     }
 
     /**

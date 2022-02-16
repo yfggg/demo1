@@ -6,6 +6,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONException;
 import com.alibaba.fastjson.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.example.demo.aop.Timer;
 import com.example.demo.entity.CollectionException;
 import com.example.demo.entity.PersonCreditReport;
@@ -25,8 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Api(tags="采集")
 @Slf4j
@@ -49,7 +52,24 @@ public class CollectionController {
     public String extractionOfCoreFields() {
         try {
             if(!esUtil.createIndex(PERSON_CREDIT_REPORT_NEW)) return null;
+
             esUtil.scrollSearch(PERSON_CREDIT_REPORT, 1000, hit -> handleHit(hit));
+
+            // 根据mysql的查询记录更新es的 filter标记
+            QueryWrapper<CollectionException> queryWrapper = new QueryWrapper<>();
+            queryWrapper.and(
+                    wrapper -> wrapper.eq("del_flag", "0")
+            );
+            List<CollectionException> collectionExceptions = collectionExceptionService.list(queryWrapper);
+            if(!collectionExceptions.isEmpty()) {
+                List<String> docIds = collectionExceptions.stream()
+                        .map(collectionException -> collectionException.getDocId())
+                        .collect(Collectors.toList());
+
+                Map<String, Object> fields = new HashMap<>();
+                fields.put("filter", "1");
+                esUtil.bulkUpdateDataById(PERSON_CREDIT_REPORT_NEW, docIds, fields);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -84,10 +104,11 @@ public class CollectionController {
             personCreditReport.setId(personalInfo.get("id").toString());
             String identificationNumber = personalInfo.get("sfzhm").toString();
             // 验证身份证是否合法
-            if(!IdcardUtil.isValidCard(identificationNumber)) {
+            if(IdcardUtil.isValidCard(identificationNumber)) {
                 log.error("_id 为 {} 的用户身份证格式异常！", docId);
                 // 有问题保存到 mysql
                 CollectionException ce = collectionExceptionService.getById(docId);
+                // 存在记录就更新描述
                 Optional.ofNullable(ce)
                         .map(collectionException -> collectionException.getExceptionDescription())
                         .ifPresent(exceptionDescription -> {
@@ -97,6 +118,7 @@ public class CollectionController {
                             ce.setExceptionDescription(sb.toString());
                             collectionExceptionService.saveOrUpdate(ce);
                         });
+                // 不存在记录就添加记录
                 String finalDocId = docId;
                 Optional.ofNullable(ce)
                         .orElseGet(() -> {
@@ -153,23 +175,6 @@ public class CollectionController {
         } catch (JSONException e) {
             log.error("_id 为 {} 的用户JSON异常: {}", docId, e.getMessage());
         }
-    }
-
-    /**
-     * 标记异常
-     * @param id
-     */
-    @Timer
-    @ApiOperation(value="标记异常")
-    @PostMapping(value = "/update/filterFlag")
-    public void updatefilterFlag(String id) {
-//        try {
-//            Map<String, Object> fields = new HashMap<>();
-//            fields.put("filter", "1");
-//            esUtil.updateDataById(PERSON_CREDIT_REPORT_NEW, id, fields);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
     }
 
 }

@@ -21,6 +21,7 @@ import com.example.demo.enums.CollectionEnum;
 import com.example.demo.service.IAccountService;
 import com.example.demo.service.ICollectionExceptionService;
 import com.example.demo.service.IWarService;
+import com.example.demo.utils.EsUtil;
 import com.example.demo.utils.ObjFieldsMapper;
 import com.example.demo.utils.ObjFieldsUtil;
 import com.example.demo.vo.AccountVO;
@@ -28,14 +29,23 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.support.WriteRequest;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 /**
@@ -53,10 +63,16 @@ import java.util.Optional;
 public class AccountController {
 
     @Autowired
+    private EsUtil esUtil;
+
+    @Autowired
     private IAccountService accountService;
 
     @Autowired
     private ICollectionExceptionService collectionExceptionService;
+
+    @Autowired
+    private RestHighLevelClient restHighLevelClient;
 
     /**
      * 打印sql 生产环境不建议使用
@@ -143,31 +159,46 @@ public class AccountController {
      @Timer
      @ApiOperation(value="测试")
      @PostMapping(value = "/test")
-     public Result<?> save() {
+     public Result<?> save() throws IOException {
 //         CollectionException collectionException = new CollectionException();
 //         collectionException.setDocId("1234");
 //         collectionException.setExceptionDescription("ggg");
 //         collectionExceptionService.saveOrUpdate(collectionException);
 
-         CollectionException ce = collectionExceptionService.getById("123cc");
+//         CollectionException ce = collectionExceptionService.getById("123cczz");
+//
+//         Optional.ofNullable(ce)
+//                 .map(collectionException -> collectionException.getExceptionDescription())
+//                 .ifPresent(exceptionDescription -> {
+//                     StringBuilder sb = new StringBuilder(exceptionDescription);
+//                     sb.append("new string, ");
+//                     ce.setExceptionDescription(sb.toString());
+//                     collectionExceptionService.saveOrUpdate(ce);
+//                 });
+//
+//         Optional.ofNullable(ce)
+//                 .orElseGet(() -> {
+//                     CollectionException collectionException = new CollectionException();
+//                     collectionException.setDocId("123cc");
+//                     collectionException.setExceptionDescription("cc");
+//                     collectionExceptionService.saveOrUpdate(collectionException);
+//             return null;
+//         });
 
-         Optional.ofNullable(ce)
-                 .map(collectionException -> collectionException.getExceptionDescription())
-                 .ifPresent(exceptionDescription -> {
-                     StringBuilder sb = new StringBuilder(exceptionDescription);
-                     sb.append("new string, ");
-                     ce.setExceptionDescription(sb.toString());
-                     collectionExceptionService.saveOrUpdate(ce);
-                 });
-
-         Optional.ofNullable(ce)
-                 .orElseGet(() -> {
-                     CollectionException collectionException = new CollectionException();
-                     collectionException.setDocId("123cc");
-                     collectionException.setExceptionDescription("cc");
-                     collectionExceptionService.saveOrUpdate(collectionException);
-             return null;
-         });
+//         QueryWrapper<CollectionException> queryWrapper = new QueryWrapper<>();
+//         queryWrapper.and(
+//                 wrapper -> wrapper.eq("del_flag", "0")
+//         );
+//         List<CollectionException> collectionExceptions = collectionExceptionService.list(queryWrapper);
+//         if(!collectionExceptions.isEmpty()) {
+//             List<String> docIds = collectionExceptions.stream()
+//                     .map(collectionException -> collectionException.getDocId())
+//                     .collect(Collectors.toList());
+//
+//             Map<String, Object> fields = new HashMap<>();
+//             fields.put("filter", "1");
+//             esUtil.bulkUpdateDataById("person_credit_report_new", docIds, fields);
+//         }
 
         return Result.OK();
     }
