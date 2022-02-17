@@ -18,7 +18,9 @@ import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.aggregations.bucket.histogram.Histogram;
 import org.elasticsearch.search.aggregations.bucket.range.DateRangeAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.range.Range;
+import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.SumAggregationBuilder;
+import org.elasticsearch.search.aggregations.metrics.ValueCount;
 import org.elasticsearch.search.aggregations.metrics.ValueCountAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,18 +45,37 @@ public class StatisticsController {
     private EsUtil esUtil;
 
     @Autowired
+    private RestHighLevelClient restHighLevelClient;
 
+    @Autowired
     private static final String PERSON_CREDIT_REPORT_NEW = "person_credit_report_new";
 
     @Timer
     @ApiOperation(value="自然人信用报告上链总数(按年龄层统计)")
-    @PostMapping(value = "/personCreditReportsUpTheChain")
-    public Bucket personCreditReportsUpTheChain() {
+    @PostMapping(value = "/statisticsByAge")
+    public Bucket statisticsByAge() {
         try {
             // 上链了才会有 slsj 这个字段
-            return esUtil.statisticsByAge(PERSON_CREDIT_REPORT_NEW, "age", "slsj.keyword");
+            return esUtil.dateRangeSubCount(PERSON_CREDIT_REPORT_NEW,"age","slsj.keyword");
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (NullPointerException e) {
+            log.error("name 或者 valueCountField 不存在！");
+        }
+        return null;
+    }
+
+    @Timer
+    @ApiOperation(value="自然人信用报告上链总数(按户口所在地统计)")
+    @PostMapping(value = "/statisticsByAccountLocation")
+    public Bucket statisticsByAccountLocation() {
+        try {
+            // 上链了才会有 slsj 这个字段
+            return esUtil.termsSubCount(PERSON_CREDIT_REPORT_NEW, "area.keyword", "slsj.keyword");
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (NullPointerException e) {
+            log.error("name 或者 valueCountField 不存在！");
         }
         return null;
     }

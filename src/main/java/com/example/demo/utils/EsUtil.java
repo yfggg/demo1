@@ -36,8 +36,11 @@ import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.range.DateRangeAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.range.Range;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.ValueCount;
 import org.elasticsearch.search.aggregations.metrics.ValueCountAggregationBuilder;
+import org.elasticsearch.search.aggregations.support.ValuesSourceAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
@@ -190,42 +193,39 @@ public class EsUtil {
     }
 
     /**
-     * 按年龄层统计
+     * range范围桶聚合
      *
      * @param index
-     * @param field
+     * @param dateRangeField
+     * @param countField
      * @return
      * @throws IOException
      */
-    public Bucket statisticsByAge(String index, String field, String subField) throws IOException {
+    public Bucket dateRangeSubCount(String index, String dateRangeField, String countField) throws IOException {
         // 创建一个查询请求，并指定索引名称
         SearchRequest searchRequest = new SearchRequest(index);
 
-        // 按年龄层统计
+        // 按 dateRangeField 范围统计
         DateRangeAggregationBuilder dateRangeAggregationBuilder =
-                AggregationBuilders.dateRange("date_range").field(field)
+                AggregationBuilders.dateRange("date_range").field(dateRangeField)
                         .addRange(0, 20).addRange(20, 40).addRange(40, 60)
                         .addRange(60, 80).addRange(80, 100).addRange(100, 120);
-        // 上链数统计
-        ValueCountAggregationBuilder valueCountAggregationBuilder =
-                AggregationBuilders.count("value_count").field(subField);
-
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        dateRangeAggregationBuilder.subAggregation(valueCountAggregationBuilder);
+        dateRangeAggregationBuilder.subAggregation(AggregationBuilders.count("count").field(countField));
         searchSourceBuilder.aggregation(dateRangeAggregationBuilder);
         searchRequest.source(searchSourceBuilder);
 
-        //发起请求，获取响应结果
+        // 发起请求，获取响应结果
         SearchResponse response = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
 
-        //获取聚合的结果
+        // 获取聚合的结果
         Range buckets = response.getAggregations().get("date_range");
         Bucket result = new Bucket();
         List<String> datas = new ArrayList<>();
         List<String> values = new ArrayList<>();
-        //循环遍历各个桶结果
+        // 循环遍历各个桶结果
         for (Range.Bucket bucket : buckets.getBuckets()) {
-            ValueCount valueCount = bucket.getAggregations().get("value_count");
+            ValueCount valueCount = bucket.getAggregations().get("count");
             datas.add(bucket.getKey().toString());
             values.add(String.valueOf(valueCount.getValue()));
         }
@@ -234,6 +234,47 @@ public class EsUtil {
 
         return result;
     }
+
+    /**
+     * term自定义分组桶聚合
+     *
+     * @param index
+     * @param termsField
+     * @param countField
+     * @return
+     * @throws IOException
+     */
+    public Bucket termsSubCount(String index, String termsField, String countField) throws IOException {
+        // 创建一个查询请求，并指定索引名称
+        SearchRequest searchRequest = new SearchRequest(index);
+
+        // 按 termsField 范围统计
+        TermsAggregationBuilder termsAggregationBuilder = AggregationBuilders.terms("terms").field(termsField);
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        termsAggregationBuilder.subAggregation(AggregationBuilders.count("count").field(countField));
+        searchSourceBuilder.aggregation(termsAggregationBuilder);
+        searchRequest.source(searchSourceBuilder);
+
+        // 发起请求，获取响应结果
+        SearchResponse response = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+
+        // 获取聚合的结果
+        Terms buckets = response.getAggregations().get("terms");
+        Bucket result = new Bucket();
+        List<String> datas = new ArrayList<>();
+        List<String> values = new ArrayList<>();
+        // 循环遍历各个桶结果
+        for (Terms.Bucket bucket : buckets.getBuckets()) {
+            ValueCount valueCount = bucket.getAggregations().get("count");
+            datas.add(bucket.getKey().toString());
+            values.add(String.valueOf(valueCount.getValue()));
+        }
+        result.setDates(datas);
+        result.setValues(values);
+
+        return result;
+    }
+
 
 }
 
