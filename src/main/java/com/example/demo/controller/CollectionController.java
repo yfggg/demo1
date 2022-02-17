@@ -93,9 +93,7 @@ public class CollectionController {
             String base64 = Base64.encode(source);
             // 提取 @timestamp
             String timestamp = JSON.parseObject(searchHit.getSourceAsString()).get("@timestamp").toString();
-            // 提取 json
             String json = JSON.parseObject(searchHit.getSourceAsString()).get("json").toString();
-            // 提取 data
             JSONObject data = (JSONObject) JSON.parseObject(json).get("data");
             // 提取个人信息
             JSONObject personalInfo = (JSONObject) data.get("grbgtgxx");

@@ -4,14 +4,18 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.example.demo.aop.Timer;
 import com.example.demo.entity.Bucket;
+import com.example.demo.entity.PersonCreditReport;
 import com.example.demo.utils.EsUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.beanutils.BeanUtils;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.Aggregations;
@@ -30,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.schema.Entry;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,30 +57,47 @@ public class StatisticsController {
 
     @Timer
     @ApiOperation(value="自然人信用报告上链总数(按年龄层统计)")
-    @PostMapping(value = "/statisticsByAge")
+    @PostMapping(value = "/byAge")
     public Bucket statisticsByAge() {
         try {
             // 上链了才会有 slsj 这个字段
-            return esUtil.dateRangeSubCount(PERSON_CREDIT_REPORT_NEW,"age","slsj.keyword");
+            return esUtil.dateRangeAggregationSubCount(PERSON_CREDIT_REPORT_NEW,"age","slsj.keyword");
         } catch (IOException e) {
             e.printStackTrace();
         } catch (NullPointerException e) {
-            log.error("name 或者 valueCountField 不存在！");
+            log.error("field不存在！");
         }
         return null;
     }
 
     @Timer
     @ApiOperation(value="自然人信用报告上链总数(按户口所在地统计)")
-    @PostMapping(value = "/statisticsByAccountLocation")
-    public Bucket statisticsByAccountLocation() {
+    @PostMapping(value = "/byArea")
+    public Bucket statisticsByArea() {
         try {
             // 上链了才会有 slsj 这个字段
-            return esUtil.termsSubCount(PERSON_CREDIT_REPORT_NEW, "area.keyword", "slsj.keyword");
+            return esUtil.termsAggregationSubCount(PERSON_CREDIT_REPORT_NEW, "area.keyword", "slsj.keyword");
         } catch (IOException e) {
             e.printStackTrace();
         } catch (NullPointerException e) {
-            log.error("name 或者 valueCountField 不存在！");
+            log.error("field不存在！");
+        }
+        return null;
+    }
+
+
+    @Timer
+    @ApiOperation(value="map2Object")
+    @PostMapping(value = "/map2Object")
+    public String test() throws IOException, InvocationTargetException, IllegalAccessException {
+        List<Map<String, Object>> maps =
+                esUtil.search(PERSON_CREDIT_REPORT_NEW, new SearchSourceBuilder(),0,10);
+        // map to Object
+        List<PersonCreditReport> personCreditReports = new ArrayList<>();
+        for(Map<String, Object> map : maps) {
+            PersonCreditReport personCreditReport = new PersonCreditReport();
+            BeanUtils.populate(personCreditReport, map);
+            personCreditReports.add(personCreditReport);
         }
         return null;
     }

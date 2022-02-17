@@ -1,5 +1,6 @@
 package com.example.demo.utils;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.example.demo.entity.Bucket;
 import lombok.extern.slf4j.Slf4j;
@@ -67,6 +68,7 @@ public class EsUtil {
 
     /**
      * 创建索引
+     *
      * @param index 索引
      * @retur
      */
@@ -201,7 +203,7 @@ public class EsUtil {
      * @return
      * @throws IOException
      */
-    public Bucket dateRangeSubCount(String index, String dateRangeField, String countField) throws IOException {
+    public Bucket dateRangeAggregationSubCount(String index, String dateRangeField, String countField) throws IOException {
         // 创建一个查询请求，并指定索引名称
         SearchRequest searchRequest = new SearchRequest(index);
 
@@ -244,7 +246,7 @@ public class EsUtil {
      * @return
      * @throws IOException
      */
-    public Bucket termsSubCount(String index, String termsField, String countField) throws IOException {
+    public Bucket termsAggregationSubCount(String index, String termsField, String countField) throws IOException {
         // 创建一个查询请求，并指定索引名称
         SearchRequest searchRequest = new SearchRequest(index);
 
@@ -273,6 +275,42 @@ public class EsUtil {
         result.setValues(values);
 
         return result;
+    }
+
+    /**
+     * 分页查询
+     *
+     * @param index
+     * @param query
+     * @param size
+     * @param from
+     * @return
+     * @throws IOException
+     */
+    public List<Map<String, Object>> search(String index,
+                                            SearchSourceBuilder query,
+                                            Integer from, Integer size) throws IOException {
+        SearchRequest searchRequest = new SearchRequest(index);
+        SearchSourceBuilder searchSourceBuilder = query;
+        searchSourceBuilder.from(from);
+        searchSourceBuilder.size(size);
+        searchRequest.source(searchSourceBuilder);
+        SearchResponse searchResponse = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+
+        // 查询成功
+        if (searchResponse.status().getStatus() == 200) {
+            // 解析对象
+            List<Map<String,Object>> list = new ArrayList<>();
+            for (SearchHit hit : searchResponse.getHits().getHits()) {
+                hit.getSourceAsMap().put("id", hit.getId());
+                // 下划线转驼峰
+                Map<String, Object> hump = new HashMap<>();
+                hit.getSourceAsMap().forEach((k,v) -> hump.put(StrUtil.toCamelCase(k), v));
+                list.add(hump);
+            }
+            return list;
+        }
+        return null;
     }
 
 
