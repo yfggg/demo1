@@ -50,29 +50,8 @@ public class CollectionController {
     @ApiOperation(value="核心字段提取")
     @PostMapping(value = "/extractionOfCoreFields")
     public String extractionOfCoreFields() {
-        try {
-            if(!esUtil.createIndex(PERSON_CREDIT_REPORT_NEW)) return null;
-
-            esUtil.scrollSearch(PERSON_CREDIT_REPORT, 1000, hit -> handleHit(hit));
-
-            // 根据mysql的查询记录更新es的 filter标记
-            QueryWrapper<CollectionException> queryWrapper = new QueryWrapper<>();
-            queryWrapper.and(
-                    wrapper -> wrapper.eq("del_flag", "0")
-            );
-            List<CollectionException> collectionExceptions = collectionExceptionService.list(queryWrapper);
-            if(!collectionExceptions.isEmpty()) {
-                List<String> docIds = collectionExceptions.stream()
-                        .map(collectionException -> collectionException.getDocId())
-                        .collect(Collectors.toList());
-
-                Map<String, Object> fields = new HashMap<>();
-                fields.put("filter", "1");
-                esUtil.bulkUpdateDataById(PERSON_CREDIT_REPORT_NEW, docIds, fields);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        if(!esUtil.createIndex(PERSON_CREDIT_REPORT_NEW)) return null;
+        esUtil.scrollSearch(PERSON_CREDIT_REPORT, 1000, hit -> handleHit(hit));
         return null;
     }
 
@@ -175,4 +154,23 @@ public class CollectionController {
         }
     }
 
+    @Timer
+    @ApiOperation(value="更新es的filter标记")
+    @PostMapping(value = "/updataFilter")
+    public String updataFilter() {
+
+        QueryWrapper<CollectionException> queryWrapper = new QueryWrapper<>();
+        queryWrapper.and(wrapper -> wrapper.eq("del_flag", "0"));
+        List<CollectionException> collectionExceptions = collectionExceptionService.list(queryWrapper);
+        if(!collectionExceptions.isEmpty()) {
+            List<String> docIds = collectionExceptions.stream()
+                    .map(collectionException -> collectionException.getDocId())
+                    .collect(Collectors.toList());
+
+            Map<String, Object> fields = new HashMap<>();
+            fields.put("filter", "1");
+            esUtil.bulkUpdateDataById(PERSON_CREDIT_REPORT_NEW, docIds, fields);
+        }
+        return null;
+    }
 }

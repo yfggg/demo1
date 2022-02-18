@@ -1,12 +1,11 @@
 package com.example.demo.controller;
 
-import com.example.demo.utils.RedisUtils;
+import com.example.demo.utils.RedisUtil;
 import io.swagger.annotations.Api;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
-import java.util.concurrent.TimeUnit;
 
 @Api(tags="缓存")
 @Slf4j
@@ -15,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 public class RedisController {
 
     @Resource
-    private RedisUtils redisUtils;
+    private RedisUtil redisUtils;
 
     /**
      * 插入缓存数据

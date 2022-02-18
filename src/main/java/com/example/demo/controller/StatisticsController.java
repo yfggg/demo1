@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Api(tags="统计")
 @Slf4j
@@ -56,12 +57,14 @@ public class StatisticsController {
     private static final String PERSON_CREDIT_REPORT_NEW = "person_credit_report_new";
 
     @Timer
-    @ApiOperation(value="自然人信用报告上链总数(按年龄层统计)")
-    @PostMapping(value = "/byAge")
-    public Bucket statisticsByAge() {
+    @ApiOperation(value="自然人信用报告上链总数 (按年龄层统计)")
+    @PostMapping(value = "/byAgeInterval")
+    public Bucket byAgeInterval() {
         try {
             // 上链了才会有 slsj 这个字段
-            return esUtil.dateRangeAggregationSubCount(PERSON_CREDIT_REPORT_NEW,"age","slsj.keyword");
+            return esUtil.dateRangeAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
+                    "age",
+                    "slsj.keyword");
         } catch (IOException e) {
             e.printStackTrace();
         } catch (NullPointerException e) {
@@ -71,12 +74,14 @@ public class StatisticsController {
     }
 
     @Timer
-    @ApiOperation(value="自然人信用报告上链总数(按户口所在地统计)")
+    @ApiOperation(value="自然人信用报告上链总数 (按户口所在地统计)")
     @PostMapping(value = "/byArea")
-    public Bucket statisticsByArea() {
+    public Bucket byArea() {
         try {
             // 上链了才会有 slsj 这个字段
-            return esUtil.termsAggregationSubCount(PERSON_CREDIT_REPORT_NEW, "area.keyword", "slsj.keyword");
+            return esUtil.termsAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
+                    "area.keyword",
+                    "slsj.keyword");
         } catch (IOException e) {
             e.printStackTrace();
         } catch (NullPointerException e) {
@@ -85,20 +90,42 @@ public class StatisticsController {
         return null;
     }
 
+    @Timer
+    @ApiOperation(value="自然人信用报告上链总数 (按时间统计)")
+    @PostMapping(value = "/byTimeRange")
+    public Bucket byTimeRange() throws IOException {
+        return esUtil.dateHistogramAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
+                "2022-01-25",
+                "2022-02-25",
+                "year",
+                "slsj.keyword");
+    }
 
     @Timer
-    @ApiOperation(value="map2Object")
-    @PostMapping(value = "/map2Object")
-    public String test() throws IOException, InvocationTargetException, IllegalAccessException {
-        List<Map<String, Object>> maps =
-                esUtil.search(PERSON_CREDIT_REPORT_NEW, new SearchSourceBuilder(),0,10);
-        // map to Object
-        List<PersonCreditReport> personCreditReports = new ArrayList<>();
-        for(Map<String, Object> map : maps) {
-            PersonCreditReport personCreditReport = new PersonCreditReport();
-            BeanUtils.populate(personCreditReport, map);
-            personCreditReports.add(personCreditReport);
+    @ApiOperation(value="map2Bean")
+    @PostMapping(value = "/map2Bean")
+    public String test() {
+        try {
+            List<Map<String, Object>> maps =
+                    esUtil.search(PERSON_CREDIT_REPORT_NEW, new SearchSourceBuilder(),0,10);
+
+            // map to bean
+            List<PersonCreditReport> personCreditReports = maps.stream().map(map -> {
+                PersonCreditReport personCreditReport = new PersonCreditReport();
+                try {
+                    BeanUtils.populate(personCreditReport, map);
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                } catch (InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+                return personCreditReport;
+            }).collect(Collectors.toList());
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+
         return null;
     }
 
