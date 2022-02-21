@@ -1,5 +1,7 @@
 package com.example.demo.controller;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.example.demo.aop.Timer;
@@ -65,8 +67,6 @@ public class StatisticsController {
             return esUtil.dateRangeAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
                     "age",
                     "slsj.keyword");
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (NullPointerException e) {
             log.error("field不存在！");
         }
@@ -82,8 +82,6 @@ public class StatisticsController {
             return esUtil.termsAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
                     "area.keyword",
                     "slsj.keyword");
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (NullPointerException e) {
             log.error("field不存在！");
         }
@@ -93,7 +91,7 @@ public class StatisticsController {
     @Timer
     @ApiOperation(value="自然人信用报告上链总数 (按时间统计)")
     @PostMapping(value = "/byTimeRange")
-    public Bucket byTimeRange() throws IOException {
+    public Bucket byTimeRange() {
         return esUtil.dateHistogramAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
                 "2022-01-25",
                 "2022-02-25",
@@ -105,26 +103,15 @@ public class StatisticsController {
     @ApiOperation(value="map2Bean")
     @PostMapping(value = "/map2Bean")
     public String test() {
-        try {
-            List<Map<String, Object>> maps =
-                    esUtil.search(PERSON_CREDIT_REPORT_NEW, new SearchSourceBuilder(),0,10);
+        List<Map<String, Object>> maps =
+                esUtil.search(PERSON_CREDIT_REPORT_NEW, new SearchSourceBuilder(),0,10);
 
-            // map to bean
-            List<PersonCreditReport> personCreditReports = maps.stream().map(map -> {
-                PersonCreditReport personCreditReport = new PersonCreditReport();
-                try {
-                    BeanUtils.populate(personCreditReport, map);
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                } catch (InvocationTargetException e) {
-                    e.printStackTrace();
-                }
-                return personCreditReport;
-            }).collect(Collectors.toList());
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        // map to bean
+        List<PersonCreditReport> personCreditReports = maps.stream().map(map -> {
+            PersonCreditReport personCreditReport =
+                    BeanUtil.mapToBean(map, PersonCreditReport.class, true, new CopyOptions());
+            return personCreditReport;
+        }).collect(Collectors.toList());
 
         return null;
     }

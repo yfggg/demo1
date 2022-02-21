@@ -82,7 +82,6 @@ public class FileUtil {
     /**
      * excel客户端下载，需要在contentClass中需要加上@Excel
      *
-     * @param titleName
      * @param fileName
      * @param contents
      * @param contentClass
@@ -112,29 +111,5 @@ public class FileUtil {
             }
         }
     }
-
-//    public static <T> void writeExcel(String titleName, String fileName,
-//                                      List<T> contents, Class<T> contentClass,
-//                                      HttpServletResponse response) {
-//        OutputStream outputStream = null;
-//        try {
-//            ExportParams exportParams = new ExportParams(titleName,"v1.0", ExcelType.HSSF);
-//            Workbook workbook = ExcelExportUtil.exportExcel(exportParams, contentClass, contents);
-//            // 设置浏览器用分段(part)请求
-//            response.setContentType("multipart/form-data");
-//            // 设置消息头，告诉浏览器，我要下载
-//            response.setHeader("Content-Disposition", "attachment; filename=" + fileName + ".xlsx");
-//            outputStream = response.getOutputStream();
-//            workbook.write(outputStream);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        } finally {
-//            try {
-//                outputStream.close();
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//        }
-//    }
 
 }

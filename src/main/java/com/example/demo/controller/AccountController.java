@@ -23,7 +23,6 @@ import com.example.demo.service.ICollectionExceptionService;
 import com.example.demo.service.IWarService;
 import com.example.demo.utils.EsUtil;
 import com.example.demo.utils.ObjFieldsMapper;
-import com.example.demo.utils.ObjFieldsUtil;
 import com.example.demo.vo.AccountVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;

@@ -222,15 +222,12 @@ public class EsUtil {
             SearchResponse searchResponse = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
 
             // 查询成功
-            if (searchResponse.status().getStatus() == 200) {
+            if (200 == searchResponse.status().getStatus()) {
                 // 解析对象
                 List<Map<String,Object>> list = new ArrayList<>();
                 for (SearchHit hit : searchResponse.getHits().getHits()) {
                     hit.getSourceAsMap().put("id", hit.getId());
-                    // 下划线转驼峰
-                    Map<String, Object> hump = new HashMap<>();
-                    hit.getSourceAsMap().forEach((k,v) -> hump.put(StrUtil.toCamelCase(k), v));
-                    list.add(hump);
+                    list.add(hit.getSourceAsMap());
                 }
                 return list;
             }
