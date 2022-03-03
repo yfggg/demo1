@@ -4,21 +4,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
-
 import java.util.concurrent.TimeUnit;
 
-/**
- * redis操作工具类.</br>
- * (基于RedisTemplate)
- * @author xcbeyond
- * 2018年7月19日下午2:56:24
- */
 @Slf4j
 @Component
 public class RedisUtil {
 
     @Autowired
-    private RedisTemplate<String, String> redisTemplate;
+    private RedisTemplate<Object, Object> redisTemplate;
 
     /**
      * 写入缓存
@@ -28,7 +21,7 @@ public class RedisUtil {
      * @param unit
      * @return
      */
-    public boolean set(final String key, String value, long time, TimeUnit unit) {
+    public boolean set(final Object key, Object value, long time, TimeUnit unit) {
         boolean result = false;
         try {
             redisTemplate.opsForValue().set(key, value);
@@ -48,7 +41,7 @@ public class RedisUtil {
      * @param value
      * @return
      */
-    public boolean set(String key, String value) {
+    public boolean set(Object key, Object value) {
         return set(key, value, -1, null);
     }
 
@@ -57,7 +50,7 @@ public class RedisUtil {
      * @param key
      * @return
      */
-    public boolean containsKey(String key) {
+    public boolean containsKey(Object key) {
         boolean result = false;
         try {
             redisTemplate.hasKey(key);
@@ -73,7 +66,7 @@ public class RedisUtil {
      * @param key
      * @return
      */
-    public String get(final String key) {
+    public Object get(final Object key) {
         if(containsKey(key)) {
             return redisTemplate.opsForValue().get(key);
         }
@@ -85,7 +78,7 @@ public class RedisUtil {
      * @param key
      * @return
      */
-    public boolean delete(final String key) {
+    public boolean delete(final Object key) {
         boolean result = false;
         try {
             redisTemplate.delete(key);

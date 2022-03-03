@@ -24,13 +24,16 @@ public class SensitiveWordController {
     @PostMapping(value = "/test")
     public String test() {
         //正文
-        String text = "我有一颗大土豆，刚出锅的刚出锅的";
+        String text = "我有一颗大**土豆，刚出锅的刚出锅的";
+
         List<String> matchAll = SensitiveWordUtil.matchAll(text,
-                "小,土豆, 刚出锅",
+                "小, 土豆, 刚出锅",
                 false, false);
+
         if(matchAll.size() > 0) {
             log.error(matchAll.toString());
         }
+
         return null;
     }
 }

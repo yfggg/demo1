@@ -65,8 +65,7 @@ public class StatisticsController {
         try {
             // 上链了才会有 slsj 这个字段
             return esUtil.dateRangeAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
-                    "age",
-                    "slsj.keyword");
+                    "age", "slsj.keyword");
         } catch (NullPointerException e) {
             log.error("field不存在！");
         }
@@ -80,8 +79,7 @@ public class StatisticsController {
         try {
             // 上链了才会有 slsj 这个字段
             return esUtil.termsAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
-                    "area.keyword",
-                    "slsj.keyword");
+                    "area.keyword", "slsj.keyword");
         } catch (NullPointerException e) {
             log.error("field不存在！");
         }
@@ -92,11 +90,13 @@ public class StatisticsController {
     @ApiOperation(value="自然人信用报告上链总数 (按时间统计)")
     @PostMapping(value = "/byTimeRange")
     public Bucket byTimeRange() {
-        return esUtil.dateHistogramAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
-                "2022-01-25",
-                "2022-02-25",
-                "year",
-                "slsj.keyword");
+        try {
+            return esUtil.dateHistogramAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
+                    "2022-01-25", "2022-02-25", "year", "slsj.keyword");
+        } catch (NullPointerException e) {
+            log.error("field不存在！");
+        }
+        return null;
     }
 
     @Timer

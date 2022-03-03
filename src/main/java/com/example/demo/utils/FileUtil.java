@@ -5,12 +5,16 @@ import cn.afterturn.easypoi.excel.entity.ExportParams;
 import cn.afterturn.easypoi.excel.entity.ImportParams;
 import cn.afterturn.easypoi.excel.entity.enmus.ExcelType;
 import cn.afterturn.easypoi.excel.entity.result.ExcelImportResult;
+import cn.hutool.core.util.NumberUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Workbook;
 
 import cn.afterturn.easypoi.excel.ExcelExportUtil;
+import org.elasticsearch.search.SearchHit;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,10 +22,15 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URL;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 @Slf4j
 @Component
 public class FileUtil {
+
+    @Resource
+    private RedisUtil redisUtils;
 
     /**
      * excel上传，开启验证传入的参数 需要在pom中加入hibernate-validator，validation-api依赖
@@ -47,7 +56,7 @@ public class FileUtil {
             e.printStackTrace();
         } finally {
             try {
-                if (fileInputStream != null) {
+                if (null != fileInputStream) {
                     fileInputStream.close();
                 }
             } catch (IOException e) {
@@ -101,14 +110,38 @@ public class FileUtil {
             response.setHeader("Content-Disposition", "attachment; filename=" + fileName + ".xlsx");
             outputStream = response.getOutputStream();
             workbook.write(outputStream);
+
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             try {
-                outputStream.close();
+                if(null != outputStream) {
+                    outputStream.close();
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    /**
+     * 异步显示进度条
+     *
+     * @param key
+     * @param total
+     * @param consumer
+     */
+    @Async
+    public void progressBar(String key, Long total, Consumer<Long> consumer) {
+        int j = 1;
+        if(100 < total) {
+            j = NumberUtil.div(total, new Double(100)).intValue();
+        }
+        for (int i = j; i <= total; i+=j) {
+            Double scale = NumberUtil.div((float)i, (float)total);
+            Double progress = NumberUtil.mul(scale, new Double(100));
+            consumer.accept(total);
+            boolean c = redisUtils.set(key, progress.intValue());
         }
     }
 

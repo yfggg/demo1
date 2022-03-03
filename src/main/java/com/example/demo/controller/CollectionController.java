@@ -139,7 +139,7 @@ public class CollectionController {
             fields.put("filter", "0");
             fields.put("url", "");
             // 上链必须字段
-            fields.put("slsj", "");
+            fields.put("slsj", "2022-03-01T03:17:06.587Z");
             fields.put("txid", "");
             fields.put("info", "");
             // 源数据备份
