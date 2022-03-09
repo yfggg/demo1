@@ -16,20 +16,22 @@ public class AsyncController {
 //    @Resource
 //    AsyncService asyncService;
 
-    @Autowired
-    FileUtil fileUtil;
+//    @Autowired
+//    FileUtil fileUtil;
+//
+//    @Timer
+//    @PostMapping(value = "/test")
+//    public void test() {
+//        fileUtil.progressBar("bar", 1000L, total -> doSometing(total));
+//    }
+//
+//    private void doSometing(Long total) {
+//        try {
+//            Thread.sleep(total);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//    }
 
-    @Timer
-    @PostMapping(value = "/test")
-    public void test() {
-        fileUtil.progressBar("bar", 1000L, total -> doSometing(total));
-    }
-
-    private void doSometing(Long total) {
-        try {
-            Thread.sleep(total);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
+    
 }

@@ -59,50 +59,16 @@ public class StatisticsController {
     private static final String PERSON_CREDIT_REPORT_NEW = "person_credit_report_new";
 
     @Timer
-    @ApiOperation(value="自然人信用报告上链总数 (按年龄层统计)")
-    @PostMapping(value = "/byAgeInterval")
-    public Bucket byAgeInterval() {
-        try {
-            // 上链了才会有 slsj 这个字段
-            return esUtil.dateRangeAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
-                    "age", "slsj.keyword");
-        } catch (NullPointerException e) {
-            log.error("field不存在！");
-        }
-        return null;
-    }
-
-    @Timer
-    @ApiOperation(value="自然人信用报告上链总数 (按户口所在地统计)")
-    @PostMapping(value = "/byArea")
-    public Bucket byArea() {
-        try {
-            // 上链了才会有 slsj 这个字段
-            return esUtil.termsAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
-                    "area.keyword", "slsj.keyword");
-        } catch (NullPointerException e) {
-            log.error("field不存在！");
-        }
-        return null;
-    }
-
-    @Timer
-    @ApiOperation(value="自然人信用报告上链总数 (按时间统计)")
-    @PostMapping(value = "/byTimeRange")
-    public Bucket byTimeRange() {
-        try {
-            return esUtil.dateHistogramAggregationSubCount(PERSON_CREDIT_REPORT_NEW,
-                    "2022-01-25", "2022-02-25", "year", "slsj.keyword");
-        } catch (NullPointerException e) {
-            log.error("field不存在！");
-        }
+    @ApiOperation(value="test")
+    @PostMapping(value = "/test")
+    public Bucket test() {
         return null;
     }
 
     @Timer
     @ApiOperation(value="map2Bean")
     @PostMapping(value = "/map2Bean")
-    public String test() {
+    public String map2Bean() {
         List<Map<String, Object>> maps =
                 esUtil.search(PERSON_CREDIT_REPORT_NEW, new SearchSourceBuilder(),0,10);
 

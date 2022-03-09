@@ -4,39 +4,54 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import com.example.demo.entity.Bucket;
 import lombok.extern.slf4j.Slf4j;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.*;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval;
+import org.elasticsearch.search.aggregations.bucket.histogram.ExtendedBounds;
 import org.elasticsearch.search.aggregations.bucket.histogram.Histogram;
-import org.elasticsearch.search.aggregations.bucket.histogram.LongBounds;
 import org.elasticsearch.search.aggregations.bucket.range.DateRangeAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.range.Range;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
-import org.elasticsearch.search.aggregations.metrics.ValueCount;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -88,6 +103,27 @@ public class EsUtil {
     }
 
     /**
+     * 删除索引
+     *
+     * @param index
+     * @return
+     */
+    public boolean deleteIndex(String index)  {
+        if(isIndexExist(index)){
+            log.error(StrUtil.format("索引 {} 已经存在！", index));
+            return false;
+        }
+        try {
+            DeleteIndexRequest request = new DeleteIndexRequest(index);
+            AcknowledgedResponse delete = restHighLevelClient.indices().delete(request, RequestOptions.DEFAULT);
+            return delete.isAcknowledged();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
      * 数据添加 指定ID
      *
      * @param index
@@ -105,12 +141,32 @@ public class EsUtil {
             }
             builder.endObject();
             IndexRequest request = new IndexRequest(index).id(id).source(builder);
-            restHighLevelClient.index(request, RequestOptions.DEFAULT);
+            IndexResponse response = restHighLevelClient.index(request, RequestOptions.DEFAULT);
+            if(!response.status().equals(RestStatus.OK)) {
+                log.warn("新增 _id:{} 的数据失败", id);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    /**
+     * 通过ID删除数据
+     *
+     * @param index
+     * @param id
+     */
+    public void deleteDataById(String index, String id) {
+        try {
+            DeleteRequest request = new DeleteRequest(index, id);
+            DeleteResponse response = restHighLevelClient.delete(request, RequestOptions.DEFAULT);
+            if(!response.status().equals(RestStatus.OK)) {
+                log.warn("删除 _id:{} 的数据失败", id);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * 通过ID 批量更新数据
@@ -146,6 +202,26 @@ public class EsUtil {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 通过ID获取数据
+     *
+     * @param index  索引，类似数据库
+     * @param id     数据ID
+     * @return
+     */
+    public Map<String,Object> searchById(String index, String id) {
+        GetRequest request = new GetRequest(index, id);
+        request.fetchSourceContext(new FetchSourceContext(true, null, Strings.EMPTY_ARRAY));
+        GetResponse response;
+        try {
+            response = restHighLevelClient.get(request, RequestOptions.DEFAULT);
+            return response.getSource();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     /**
@@ -242,11 +318,10 @@ public class EsUtil {
      *
      * @param index
      * @param dateRangeField
-     * @param countField
      * @return
      * @throws IOException
      */
-    public Bucket dateRangeAggregationSubCount(String index, String dateRangeField, String countField) {
+    public Bucket dateRangeAggregationSubCount(String index, String dateRangeField) {
         try {
             // 创建一个查询请求，并指定索引名称
             SearchRequest searchRequest = new SearchRequest(index);
@@ -256,8 +331,8 @@ public class EsUtil {
                     AggregationBuilders.dateRange("date_range").field(dateRangeField)
                             .addRange(0, 20).addRange(20, 40).addRange(40, 60)
                             .addRange(60, 80).addRange(80, 100).addRange(100, 120);
+
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            dateRangeAggregationBuilder.subAggregation(AggregationBuilders.count("count").field(countField));
             searchSourceBuilder.aggregation(dateRangeAggregationBuilder);
             searchRequest.source(searchSourceBuilder);
 
@@ -266,21 +341,25 @@ public class EsUtil {
 
             // 获取聚合的结果
             Range buckets = response.getAggregations().get("date_range");
+
             Bucket result = new Bucket();
             List<String> datas = new ArrayList<>();
             List<String> values = new ArrayList<>();
+
             // 循环遍历各个桶结果
             for (Range.Bucket bucket : buckets.getBuckets()) {
-                ValueCount valueCount = bucket.getAggregations().get("count");
                 datas.add(bucket.getKeyAsString());
-                values.add(String.valueOf(valueCount.getValue()));
+                values.add(String.valueOf(bucket.getDocCount()));
             }
+
             result.setDates(datas);
             result.setValues(values);
 
             return result;
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (NullPointerException e) {
+            log.error("传参错误！");
         }
         return null;
     }
@@ -290,19 +369,18 @@ public class EsUtil {
      *
      * @param index
      * @param termsField
-     * @param countField
      * @return
      * @throws IOException
      */
-    public Bucket termsAggregationSubCount(String index, String termsField, String countField) {
+    public Bucket termsAggregationSubCount(String index, String termsField) {
         try {
             // 创建一个查询请求，并指定索引名称
             SearchRequest searchRequest = new SearchRequest(index);
 
             // 按 termsField 范围统计
             TermsAggregationBuilder termsAggregationBuilder = AggregationBuilders.terms("terms").field(termsField);
+
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            termsAggregationBuilder.subAggregation(AggregationBuilders.count("count").field(countField));
             searchSourceBuilder.aggregation(termsAggregationBuilder);
             searchRequest.source(searchSourceBuilder);
 
@@ -311,21 +389,25 @@ public class EsUtil {
 
             // 获取聚合的结果
             Terms buckets = response.getAggregations().get("terms");
+
             Bucket result = new Bucket();
             List<String> datas = new ArrayList<>();
             List<String> values = new ArrayList<>();
+
             // 循环遍历各个桶结果
             for (Terms.Bucket bucket : buckets.getBuckets()) {
-                ValueCount valueCount = bucket.getAggregations().get("count");
                 datas.add(bucket.getKeyAsString());
-                values.add(String.valueOf(valueCount.getValue()));
+                values.add(String.valueOf(bucket.getDocCount()));
             }
+
             result.setDates(datas);
             result.setValues(values);
 
             return result;
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (NullPointerException e) {
+            log.error("传参错误！");
         }
         return null;
     }
@@ -333,51 +415,55 @@ public class EsUtil {
     /**
      * 日期直方图桶聚合
      *
+     * @param index
      * @param startTime
      * @param endTime
-     * @param index
-     * @param countField
+     * @param timeDimension
+     * @param dateHistogramField
+     * @param boolQueryBuilder
      * @return
-     * @throws IOException
      */
     public Bucket dateHistogramAggregationSubCount(String index,
-                                                   String startTime,
-                                                   String endTime,
-                                                   String intervalType,
-                                                   String countField) {
+                                                   String startTime, String endTime,
+                                                   Object timeDimension, String dateHistogramField,
+                                                   BoolQueryBuilder boolQueryBuilder) {
         try {
             // 创建一个查询请求，并指定索引名称
             SearchRequest searchRequest = new SearchRequest(index);
 
             // 按时间范围统计
             DateHistogramAggregationBuilder dateHistogramAggregationBuilder = AggregationBuilders.dateHistogram("dh");
-            dateHistogramAggregationBuilder.field("@timestamp");
-            switch(intervalType){
-                case "day" :
+            dateHistogramAggregationBuilder.field(dateHistogramField);
+            switch(Integer.parseInt(timeDimension.toString())){
+                case 1 :
                     dateHistogramAggregationBuilder.calendarInterval(DateHistogramInterval.DAY);
                     dateHistogramAggregationBuilder.format("yyyy-MM-dd");
                     break;
-                case "week" :
+                case 7 :
                     dateHistogramAggregationBuilder.calendarInterval(DateHistogramInterval.WEEK);
                     dateHistogramAggregationBuilder.format("yyyy-MM-dd");
                     break;
-                case "month" :
+                case 30 :
                     dateHistogramAggregationBuilder.calendarInterval(DateHistogramInterval.MONTH);
                     dateHistogramAggregationBuilder.format("yyyy-MM");
                     break;
-                case "year" :
+                case 365 :
                     dateHistogramAggregationBuilder.calendarInterval(DateHistogramInterval.YEAR);
                     dateHistogramAggregationBuilder.format("yyyy");
                     break;
+                default :
+                    throw new NullPointerException();
             }
             dateHistogramAggregationBuilder.timeZone(ZoneId.of("Asia/Shanghai"));
+
+            // 柱状图显示范围
             dateHistogramAggregationBuilder.extendedBounds(
-                    new LongBounds(
-                            DateUtil.parse(startTime).getTime(),
-                            DateUtil.parse(endTime).getTime()
+                    new ExtendedBounds(
+                            DateUtil.parse(startTime).getTime(), DateUtil.parse(endTime).getTime()
                     ));
+
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            dateHistogramAggregationBuilder.subAggregation(AggregationBuilders.count("count").field(countField));
+            searchSourceBuilder.query(boolQueryBuilder);
             searchSourceBuilder.aggregation(dateHistogramAggregationBuilder);
             searchRequest.source(searchSourceBuilder);
 
@@ -386,25 +472,45 @@ public class EsUtil {
 
             // 获取聚合的结果
             Histogram buckets = response.getAggregations().get("dh");
+
             Bucket result = new Bucket();
             List<String> datas = new ArrayList<>();
             List<String> values = new ArrayList<>();
+            List<String> chainGrowthRate = new ArrayList<>();
+
             // 循环遍历各个桶结果
+            int thisIssue = 1;
+            int lastIssue;
             for (Histogram.Bucket bucket : buckets.getBuckets()) {
-                ValueCount valueCount = bucket.getAggregations().get("count");
                 datas.add(bucket.getKeyAsString());
-                values.add(String.valueOf(valueCount.getValue()));
+                values.add(String.valueOf(bucket.getDocCount()));
+                lastIssue = thisIssue;
+                thisIssue += new Long(bucket.getDocCount()).intValue();
+                // 环比增长率 = (本期数 - 上期数) / 上期数 × 100%
+                BigDecimal diff = new BigDecimal(thisIssue - lastIssue);
+                BigDecimal rate = BigDecimal.ZERO;
+                if(0 != diff.compareTo(BigDecimal.ZERO)) {
+                    rate = diff.divide(new BigDecimal(lastIssue)).multiply(new BigDecimal(100))
+                            .setScale(1, RoundingMode.HALF_UP);
+                }
+                chainGrowthRate.add(new StringBuilder().append(rate).append("%").toString());
             }
+
             result.setDates(datas);
             result.setValues(values);
+            result.setChainGrowthRate(chainGrowthRate);
 
             return result;
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (NullPointerException e) {
+            log.error("传参错误！");
+        } catch (ElasticsearchStatusException e) {
+            log.error("检查开始和结束时间！");
         }
         return null;
     }
 
-
 }
+
 

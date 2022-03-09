@@ -8,4 +8,5 @@ import java.util.List;
 public class Bucket {
     private List<String> dates;
     private List<String> values;
+    private List<String> chainGrowthRate;
 }
