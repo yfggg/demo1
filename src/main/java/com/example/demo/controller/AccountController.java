@@ -6,6 +6,7 @@ import cn.hutool.core.date.LocalDateTimeUtil;
 import cn.hutool.core.lang.Opt;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
@@ -37,6 +38,9 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.redisson.Redisson;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,6 +48,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 
@@ -72,6 +77,9 @@ public class AccountController {
 
     @Autowired
     private RestHighLevelClient restHighLevelClient;
+
+    @Autowired
+    private RedissonClient redissonClient;
 
     /**
      * 打印sql 生产环境不建议使用
@@ -138,68 +146,25 @@ public class AccountController {
         return Result.OK(pageList);
     }
 
-    /**
-     * 多表关联插入
-     *
-     * @param
-     * @return
-     */
-//    @IsRepeatSubmit(intervalTime=5, msg="禁止重复提交")
-//    @Timer
-//    @ApiOperation(value="多表关联插入")
-//    @PostMapping(value = "/save")
-//    public Result<?> save(@RequestBody Account account) {
-//        AccountVO vo = ObjFieldsMapper.INSTANCE.toVO(account);
-////        queryPageList()
-//        accountService.multiTablesSave(account);
-//        return Result.OK();
-//    }
-
      @Timer
-     @ApiOperation(value="测试")
+     @ApiOperation(value="并发插入测试")
      @PostMapping(value = "/test")
-     public Result<?> save() throws IOException {
-//         CollectionException collectionException = new CollectionException();
-//         collectionException.setDocId("1234");
-//         collectionException.setExceptionDescription("ggg");
-//         collectionExceptionService.saveOrUpdate(collectionException);
-
-//         CollectionException ce = collectionExceptionService.getById("123cczz");
-//
-//         Optional.ofNullable(ce)
-//                 .map(collectionException -> collectionException.getExceptionDescription())
-//                 .ifPresent(exceptionDescription -> {
-//                     StringBuilder sb = new StringBuilder(exceptionDescription);
-//                     sb.append("new string, ");
-//                     ce.setExceptionDescription(sb.toString());
-//                     collectionExceptionService.saveOrUpdate(ce);
-//                 });
-//
-//         Optional.ofNullable(ce)
-//                 .orElseGet(() -> {
-//                     CollectionException collectionException = new CollectionException();
-//                     collectionException.setDocId("123cc");
-//                     collectionException.setExceptionDescription("cc");
-//                     collectionExceptionService.saveOrUpdate(collectionException);
-//             return null;
-//         });
-
-//         QueryWrapper<CollectionException> queryWrapper = new QueryWrapper<>();
-//         queryWrapper.and(
-//                 wrapper -> wrapper.eq("del_flag", "0")
-//         );
-//         List<CollectionException> collectionExceptions = collectionExceptionService.list(queryWrapper);
-//         if(!collectionExceptions.isEmpty()) {
-//             List<String> docIds = collectionExceptions.stream()
-//                     .map(collectionException -> collectionException.getDocId())
-//                     .collect(Collectors.toList());
-//
-//             Map<String, Object> fields = new HashMap<>();
-//             fields.put("filter", "1");
-//             esUtil.bulkUpdateDataById("person_credit_report_new", docIds, fields);
-//         }
-
-        return Result.OK();
+     public Result<?> test() throws InterruptedException {
+         RLock rLock = redissonClient.getLock("test");
+         // 尝试加锁，最多等待3秒，上锁以后10秒自动解锁
+         boolean res = rLock.tryLock(3, 10, TimeUnit.SECONDS);
+         if (res) {
+             QueryWrapper<Account> queryWrapper = new QueryWrapper<>();
+             queryWrapper.eq("amount", "yf");
+             int count = accountService.count(queryWrapper);
+             if(0 >= count) {
+                 Account account = new Account();
+                 account.setAmount("yf");
+                 accountService.save(account);
+             }
+             rLock.unlock();
+         }
+         return Result.OK();
     }
 
 }
