@@ -1,12 +1,18 @@
 package com.example.demo.utils;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson.JSON;
 import com.example.demo.entity.Bucket;
+import com.example.demo.entity.TestData;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
+import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -27,6 +33,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.Scroll;
@@ -49,9 +56,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -64,6 +69,9 @@ public class EsUtil {
 
     @Autowired
     private RestHighLevelClient restHighLevelClient;
+
+    @Autowired
+    private BulkProcessor bulkProcessor;
 
     /**
      * 创建索引
@@ -124,6 +132,16 @@ public class EsUtil {
     }
 
     /**
+     * 数据添加 随机ID
+     *
+     * @param index
+     * @param field
+     */
+    public void addData(String index, Object field) {
+        this.addData(index, IdUtil.simpleUUID(), BeanUtil.beanToMap(field));
+    }
+
+    /**
      * 数据添加 指定ID
      *
      * @param index
@@ -148,6 +166,24 @@ public class EsUtil {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 批量插入 随机ID
+     *
+     * @param index
+     * @param
+     */
+    public void bulkAddData(String index, List<TestData> list) {
+        List<IndexRequest> indexRequests = new ArrayList<>();
+        list.forEach(e -> {
+            IndexRequest request = new IndexRequest(index);
+            request.id(IdUtil.simpleUUID());
+            request.source(JSON.toJSONString(e), XContentType.JSON);
+            request.opType(DocWriteRequest.OpType.CREATE);
+            indexRequests.add(request);
+        });
+        indexRequests.forEach(bulkProcessor::add);
     }
 
     /**
