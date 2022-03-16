@@ -3,53 +3,28 @@ package com.example.demo.controller;
 import cn.hutool.core.date.DatePattern;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.date.LocalDateTimeUtil;
-import cn.hutool.core.lang.Opt;
-import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
-import com.example.demo.aop.IsRepeatSubmit;
 import com.example.demo.aop.Timer;
 import com.example.demo.entity.Account;
-import com.example.demo.entity.CollectionException;
 import com.example.demo.entity.Result;
-import com.example.demo.entity.War;
-import com.example.demo.enums.CollectionEnum;
 import com.example.demo.service.IAccountService;
-import com.example.demo.service.ICollectionExceptionService;
-import com.example.demo.service.IWarService;
 import com.example.demo.utils.EsUtil;
-import com.example.demo.utils.ObjFieldsMapper;
 import com.example.demo.vo.AccountVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.support.WriteRequest;
-import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.redisson.Redisson;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
-import java.lang.reflect.Field;
 import java.time.LocalDateTime;
-import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 
 /**
@@ -71,9 +46,6 @@ public class AccountController {
 
     @Autowired
     private IAccountService accountService;
-
-    @Autowired
-    private ICollectionExceptionService collectionExceptionService;
 
     @Autowired
     private RestHighLevelClient restHighLevelClient;

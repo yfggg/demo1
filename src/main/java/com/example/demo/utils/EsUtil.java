@@ -132,49 +132,12 @@ public class EsUtil {
     }
 
     /**
-     * 数据添加 随机ID
-     *
-     * @param index
-     * @param field
-     */
-//    public void addData(String index, Object field) {
-//        this.addData(index, IdUtil.simpleUUID(), BeanUtil.beanToMap(field));
-//    }
-
-    /**
-     * 数据添加 指定ID
-     *
-     * @param index
-     * @param id
-     * @param fields
-     * @return
-     * @throws IOException
-     */
-//    public void addData(String index, String id, Map<String, Object> fields) {
-//        try {
-//            XContentBuilder builder = XContentFactory.jsonBuilder();
-//            builder.startObject();
-//            for(String key : fields.keySet()){
-//                builder.field(key, fields.get(key));
-//            }
-//            builder.endObject();
-//            IndexRequest request = new IndexRequest(index).id(id).source(builder);
-//            IndexResponse response = restHighLevelClient.index(request, RequestOptions.DEFAULT);
-//            if(!response.status().equals(RestStatus.OK)) {
-//                log.warn("新增 _id:{} 的数据失败", id);
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
-
-    /**
      * 批量插入 随机ID
      *
      * @param index
      * @param
      */
-    public void bulkAddData(String index, List<TestData> list) {
+    public<T> void bulkAddData(String index, List<T> list) {
         List<IndexRequest> indexRequests = new ArrayList<>();
         list.forEach(e -> {
             IndexRequest request = new IndexRequest(index);
@@ -203,42 +166,6 @@ public class EsUtil {
             e.printStackTrace();
         }
     }
-
-    /**
-     * 通过ID 批量更新数据
-     *
-     * @param fields     要增加的数据
-     * @param index      索引，类似数据库
-     * @param ids        数据ID列表
-     * @return
-     */
-//    public void bulkUpdateDataById(String index, List<String> ids, Map<String, Object> fields) {
-//        try {
-//            XContentBuilder builder = XContentFactory.jsonBuilder();
-//            builder.startObject();
-//            for(String key : fields.keySet()){
-//                String value = fields.get(key).toString();
-//                builder.field(key, value);
-//            }
-//            builder.endObject();
-//
-//            BulkRequest request = new BulkRequest();
-//            for(String id : ids) {
-//                request.add(new UpdateRequest(index, id).doc(builder));
-//                request.timeout("2m");
-//            }
-//            BulkResponse bulkResponse = restHighLevelClient.bulk(request, RequestOptions.DEFAULT);
-//
-//            for (BulkItemResponse bulkItemResponse : bulkResponse) {
-//                if (bulkItemResponse.isFailed()) {
-//                    BulkItemResponse.Failure failure = bulkItemResponse.getFailure();
-//                    log.error("_id {} 更新失败: {}", bulkItemResponse.getId(), failure.getMessage());
-//                }
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
 
     /**
      * 通过ID获取数据

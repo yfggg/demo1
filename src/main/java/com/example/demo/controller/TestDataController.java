@@ -73,8 +73,6 @@ public class TestDataController {
         });
         esUtil.createIndex("test");
         esUtil.bulkAddData("test", all);
-//        all.stream().forEach(data -> esUtil.addData("test", data));
-
 
 
 //        List<TestData> list = testDataService.list();
