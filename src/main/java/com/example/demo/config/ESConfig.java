@@ -90,11 +90,11 @@ public class ESConfig {
                 (request, bulkListener) ->
                         this.restHighLevelClient(restClientBuilder).bulkAsync(request, RequestOptions.DEFAULT, bulkListener), listener)
                 //到达10000条时刷新
-                .setBulkActions(10000)
+//                .setBulkActions(10000)
                 //内存到达8M时刷新
-                .setBulkSize(new ByteSizeValue(8L, ByteSizeUnit.MB))
+//                .setBulkSize(new ByteSizeValue(8L, ByteSizeUnit.MB))
                 //设置的刷新间隔10s
-                .setFlushInterval(TimeValue.timeValueSeconds(10))
+//                .setFlushInterval(TimeValue.timeValueSeconds(10))
                 //设置允许执行的并发请求数。
                 .setConcurrentRequests(9)
                 //设置重试策略

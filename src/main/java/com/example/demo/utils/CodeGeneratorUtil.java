@@ -11,9 +11,6 @@ import java.util.List;
 public class CodeGeneratorUtil {
 
     public static void main(String[] args) {
-//        FastAutoGenerator.create("jdbc:mysql://192.168.1.216:3306/fuzhou" +
-//                        "?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8",
-//                "root", "Fuchain@2020")
         FastAutoGenerator.create("jdbc:mysql://127.0.0.1:3306/ditian" +
                         "?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8",
                 "root", "root")
