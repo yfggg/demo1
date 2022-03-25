@@ -22,6 +22,12 @@ public class QueueMessageListener {
     static final String QUEUE_SMS = "q_sms";
     static final String QUEUE_APP = "q_app";
     static final String QUEUE_ES = "q_es";
+    static final String QUEUE_TRANSACTIONAL = "q_transactional";
+
+    @RabbitListener(queues = QUEUE_TRANSACTIONAL)
+    public void onTransactionalMessageFromTransactionalQueue(String msg) {
+        log.info(msg);
+    }
 
     @RabbitListener(queues = QUEUE_ES)
     public void onInsertMessageFromEsQueue(List<TestData> all) {

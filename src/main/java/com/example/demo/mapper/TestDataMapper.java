@@ -24,6 +24,6 @@ import java.util.List;
 @Mapper
 public interface TestDataMapper extends BaseMapper<TestData> {
 
-    @Select("<script> SELECT `id`,`name`,`pwd` FROM `test_data` where id > #{s} limit 10000 </script>")
+    @Select("SELECT * FROM `test_data` where id > #{s} limit 10000")
     List<TestData> queryAll(@Param("s") Integer s);
 }

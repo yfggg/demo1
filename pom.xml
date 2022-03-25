@@ -159,8 +159,6 @@
         </dependency>
 
 
-
-
         <!-- elasticsearch -->
         <dependency>
             <groupId>org.elasticsearch</groupId>
@@ -243,6 +241,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-core -->
+<!--        <dependency>-->
+<!--            <groupId>org.hibernate</groupId>-->
+<!--            <artifactId>hibernate-core</artifactId>-->
+<!--            <version>5.4.32.Final</version>-->
+<!--        </dependency>-->
+
+        <!-- https://mvnrepository.com/artifact/org.liquibase/liquibase-core -->
+<!--        <dependency>-->
+<!--            <groupId>org.liquibase</groupId>-->
+<!--            <artifactId>liquibase-core</artifactId>-->
+<!--            <version>4.8.0</version>-->
+<!--        </dependency>-->
+
+
 
     </dependencies>
 

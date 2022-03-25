@@ -118,26 +118,7 @@ public class AccountController {
         return Result.OK(pageList);
     }
 
-     @Timer
-     @ApiOperation(value="并发插入测试")
-     @PostMapping(value = "/test")
-     public Result<?> test() throws InterruptedException {
-         RLock rLock = redissonClient.getLock("test");
-         // 尝试加锁，最多等待3秒，上锁以后10秒自动解锁
-         boolean res = rLock.tryLock(3, 10, TimeUnit.SECONDS);
-         if (res) {
-             QueryWrapper<Account> queryWrapper = new QueryWrapper<>();
-             queryWrapper.eq("amount", "yf");
-             int count = accountService.count(queryWrapper);
-             if(0 >= count) {
-                 Account account = new Account();
-                 account.setAmount("yf");
-                 accountService.save(account);
-             }
-             rLock.unlock();
-         }
-         return Result.OK();
-    }
+
 
 }
 

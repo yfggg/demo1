@@ -2,15 +2,23 @@ package com.example.demo.controller;
 
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.lang.UUID;
+import cn.hutool.core.util.IdUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.conditions.query.QueryChainWrapper;
 import com.example.demo.aop.Timer;
 import com.example.demo.config.MessagingService;
+import com.example.demo.entity.Account;
+import com.example.demo.entity.Result;
 import com.example.demo.entity.TestData;
 import com.example.demo.service.IAccountService;
 import com.example.demo.service.ITestDataService;
 import com.example.demo.utils.EsUtil;
 import com.example.demo.utils.RedisUtil;
+import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,6 +30,9 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
@@ -49,9 +60,15 @@ public class OptimizationController {
     @Autowired
     private MessagingService messagingService;
 
+    @Autowired
+    private RedissonClient redissonClient;
+
+    @Autowired
+    private IAccountService accountService;
+
     @Timer
-    @GetMapping(value = "/test")
-    public String test() throws ExecutionException, InterruptedException {
+    @GetMapping(value = "/insert")
+    public String insert() {
 
         /*1*/
 //        List<TestData> list = testDataService.list();
@@ -66,24 +83,16 @@ public class OptimizationController {
 //        redisUtil.set("test_data", all);
 
         /*3*/
-//        List<CompletableFuture<List<TestData>>> futureList = new ArrayList<>();
-//        for (int i = 1; i <= 100; i++) {
-//            int startIdx = i * 10000;
-//            CompletableFuture<List<TestData>> completableFuture = testDataService.completableFutureTask(startIdx);
-//            futureList.add(completableFuture);
-//        }
-//        List<TestData> all = new ArrayList<>();
-//        futureList.stream().forEach(future -> {
-//            try {
-//                all.addAll(future.get());
-//            } catch (InterruptedException | ExecutionException e) {
-//                log.error("多线程查询出现异常：{}", e.getMessage());
-//            }
-//        });
-//        esUtil.createIndex("test");
-//        esUtil.bulkAddData("test", all);
+        esUtil.createIndex("test");
+        esUtil.bulkAddData("test", queryAll());
 
         /*4*/
+        messagingService.sendInsertMessage(queryAll());
+
+        return null;
+    }
+
+    public List<TestData> queryAll() {
         List<CompletableFuture<List<TestData>>> futureList = new ArrayList<>();
         for (int i = 1; i <= 100; i++) {
             int startIdx = i * 10000;
@@ -98,40 +107,70 @@ public class OptimizationController {
                 log.error("多线程查询出现异常：{}", e.getMessage());
             }
         });
-        messagingService.sendInsertMessage(all);
-
-        return null;
+        return all;
     }
 
     @Timer
     @GetMapping(value = "/thread")
     public void thread() {
-        Runner1 runner1 = new Runner1();
-        Runner2 runner2 = new Runner2();
-//        Thread(Runnable target) 分配新的 Thread 对象。
-        Thread thread1 = new Thread(runner1);
-        Thread thread2 = new Thread(runner2);
+        Thread thread1 = new Thread(() -> {
+            for (int i = 0; i < 100; i++) {
+                System.out.println(Thread.currentThread().getName() + "--进入Runner1运行状态——————————" + i);
+            }
+        });
+        Thread thread2 = new Thread(() -> {
+            for (int i = 0; i < 100; i++) {
+                System.out.println(Thread.currentThread().getName() + "--进入Runner2运行状态==========" + i);
+            }
+        });
         thread1.start();
         thread2.start();
 //        thread1.run();
 //        thread2.run();
     }
 
-    class Runner1 implements Runnable { // 实现了Runnable，jdk就知道这个类是一个线程
-        public void run() {
-            for (int i = 0; i < 100000; i++) {
-                System.out.println(Thread.currentThread().getName() + "--进入Runner1运行状态——————————" + i);
+    @Timer
+    @ApiOperation(value="并发插入测试")
+    @PostMapping(value = "/kill")
+    public void kill() throws InterruptedException {
+        RLock rLock = redissonClient.getLock("test");
+        // 尝试加锁，最多等待3秒，上锁以后10秒自动解锁
+        if (rLock.tryLock(3, 10, TimeUnit.SECONDS)) {
+            try {
+                someting();
+            } finally {
+                rLock.unlock();
             }
         }
     }
 
-    class Runner2 implements Runnable { // 实现了Runnable，jdk就知道这个类是一个线程
-        public void run() {
-            for (int i = 0; i < 100000; i++) {
-                System.out.println(Thread.currentThread().getName() + "--进入Runner2运行状态==========" + i);
+    // 必须放在接口外面，那不然每个请求的lock是不同的！！！
+    private final static Lock lock = new ReentrantLock();
+    @Timer
+    @ApiOperation(value="并发插入测试2")
+    @PostMapping(value = "/kill2")
+    public void kill2() throws InterruptedException {
+        // 尝试加锁，最多等待3秒
+        if (lock.tryLock(3, TimeUnit.SECONDS)) {
+            try {
+                someting();
+            } finally {
+                lock.unlock();
             }
         }
     }
+
+    private void someting() {
+        QueryWrapper<Account> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("amount", "yf");
+        int count = accountService.count(queryWrapper);
+        if(0 >= count) {
+            Account account = new Account();
+            account.setAmount("yf");
+            accountService.save(account);
+        }
+    }
+
 
 }
 
